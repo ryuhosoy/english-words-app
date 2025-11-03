@@ -57,7 +57,7 @@ export default function WelcomeScreen() {
 
           <Button
             title="はじめる"
-            onPress={() => router.push('/(tabs)')}
+            onPress={() => router.push('/home')}
             style={styles.startButton}
             textStyle={styles.startButtonText}
           />

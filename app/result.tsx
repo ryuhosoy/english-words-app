@@ -52,7 +52,7 @@ export default function ResultScreen() {
 
         <View style={styles.buttonsContainer}>
           <Button title="🔄 もう一度プレイ" onPress={() => router.push('/quiz')} style={styles.playAgainButton} textStyle={styles.playAgainButtonText} />
-          <Button title="🏠 ホームに戻る" onPress={() => router.push('/(tabs)')} variant="outline" style={styles.homeButton} textStyle={styles.homeButtonText} />
+          <Button title="🏠 ホームに戻る" onPress={() => router.push('/home')} variant="outline" style={styles.homeButton} textStyle={styles.homeButtonText} />
         </View>
 
         <Text style={styles.footerText}>スコアをシェアして友達に自慢しよう!</Text>

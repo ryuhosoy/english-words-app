@@ -2,9 +2,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import Avatar from '../../components/Avatar';
-import Button from '../../components/Button';
-import Card from '../../components/Card';
+import Avatar from '../components/Avatar';
+import Button from '../components/Button';
+import Card from '../components/Card';
 
 const weeklyRankings = [
   { rank: '🥇', name: 'Yuki', points: '2450pt' },
@@ -301,3 +301,4 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
 });
+
