@@ -45,20 +45,27 @@ export default function QuizScreen() {
   const [score, setScore] = useState(0);
   const [timeLeft, setTimeLeft] = useState(15);
   const [correctAnswers, setCorrectAnswers] = useState(0);
+  const [isQuizComplete, setIsQuizComplete] = useState(false);
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          handleNextQuestion();
-          return 15;
-        }
-        return prev - 1;
-      });
-    }, 1000);
+    if (timeLeft > 0) {
+      const timer = setTimeout(() => {
+        setTimeLeft(timeLeft - 1);
+      }, 1000);
+      return () => clearTimeout(timer);
+    } else if (timeLeft === 0 && !isQuizComplete) {
+      handleNextQuestion();
+    }
+  }, [timeLeft, isQuizComplete]);
 
-    return () => clearInterval(timer);
-  }, [currentQuestion]);
+  useEffect(() => {
+    if (isQuizComplete) {
+      router.push({
+        pathname: '/result',
+        params: { score, correctAnswers, totalQuestions: quizData.length }
+      });
+    }
+  }, [isQuizComplete]);
 
   const handleAnswer = (selectedIndex: number) => {
     const isCorrect = selectedIndex === quizData[currentQuestion].correctIndex;
@@ -74,10 +81,7 @@ export default function QuizScreen() {
       setCurrentQuestion(currentQuestion + 1);
       setTimeLeft(15);
     } else {
-      router.push({
-        pathname: '/result',
-        params: { score, correctAnswers, totalQuestions: quizData.length }
-      });
+      setIsQuizComplete(true);
     }
   };
 
