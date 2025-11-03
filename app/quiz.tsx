@@ -2,14 +2,15 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import FirstRankIcon from '../assets/images/container-17.svg';
 import Avatar from '../components/Avatar';
 import Card from '../components/Card';
 import ProgressBar from '../components/ProgressBar';
 
 const quizPlayers = [
-  { rank: '🥇', name: 'Mei', points: '42pt', initial: 'M', highlight: false },
-  { rank: '2', name: 'あなた', points: '0pt', initial: 'Y', highlight: true },
-  { rank: '3', name: 'Yuki', points: '0pt', initial: 'Y', highlight: false },
+  { rankIcon: FirstRankIcon, rank: '1', name: 'Mei', points: '42pt', initial: 'M', highlight: false },
+  { rankIcon: null, rank: '2', name: 'あなた', points: '0pt', initial: 'Y', highlight: true },
+  { rankIcon: null, rank: '3', name: 'Yuki', points: '0pt', initial: 'Y', highlight: false },
 ];
 
 const quizData = [
@@ -105,14 +106,23 @@ export default function QuizScreen() {
           <Text style={styles.rankingLabel}>🏆 ランキング</Text>
         </View>
         <View style={styles.playersContainer}>
-          {quizPlayers.map((player, index) => (
-            <View key={index} style={[styles.playerCard, player.highlight && styles.playerCardHighlight]}>
-              <Text style={styles.playerRank}>{player.rank}</Text>
-              <Avatar initial={player.initial} size={26} backgroundColor={player.highlight ? '#f0b100' : '#ad46ff'} borderColor={player.highlight ? '#fdc700' : '#ffffff33'} borderWidth={2} />
-              <Text style={[styles.playerName, player.highlight && styles.playerNameHighlight]}>{player.name}</Text>
-              <Text style={[styles.playerPoints, player.highlight && styles.playerPointsHighlight]}>{player.points}</Text>
-            </View>
-          ))}
+          {quizPlayers.map((player, index) => {
+            const RankIcon = player.rankIcon;
+            return (
+              <View key={index} style={[styles.playerCard, player.highlight && styles.playerCardHighlight]}>
+                {RankIcon ? (
+                  <View style={styles.rankIconWrapper}>
+                    <RankIcon width={16} height={16} />
+                  </View>
+                ) : (
+                  <Text style={styles.playerRank}>{player.rank}</Text>
+                )}
+                <Avatar initial={player.initial} size={26} backgroundColor={player.highlight ? '#f0b100' : '#ad46ff'} borderColor={player.highlight ? '#fdc700' : '#ffffff33'} borderWidth={2} />
+                <Text style={[styles.playerName, player.highlight && styles.playerNameHighlight]}>{player.name}</Text>
+                <Text style={[styles.playerPoints, player.highlight && styles.playerPointsHighlight]}>{player.points}</Text>
+              </View>
+            );
+          })}
         </View>
       </View>
 
@@ -148,6 +158,7 @@ const styles = StyleSheet.create({
   playersContainer: { flexDirection: 'row', gap: 8 },
   playerCard: { flex: 1, backgroundColor: '#ffffff1a', borderRadius: 14, borderWidth: 1, borderColor: '#ffffff33', padding: 8, alignItems: 'center', gap: 6 },
   playerCardHighlight: { backgroundColor: '#fdc7004c', borderColor: '#fdc700', borderWidth: 2 },
+  rankIconWrapper: { width: 16, height: 16 },
   playerRank: { fontSize: 16 },
   playerName: { fontSize: 12, color: '#ffffff', textAlign: 'center' },
   playerNameHighlight: { color: '#fef9c1' },

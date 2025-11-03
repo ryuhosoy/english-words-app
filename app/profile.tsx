@@ -2,16 +2,20 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import WordsIcon from '../assets/images/container-10.svg';
+import StreakIcon from '../assets/images/container-2.svg';
+import TrophyIcon from '../assets/images/container-23.svg';
+import WinRateIcon from '../assets/images/container-24.svg';
 import Avatar from '../components/Avatar';
 import Button from '../components/Button';
 import Card from '../components/Card';
 import ProgressBar from '../components/ProgressBar';
 
 const profileStats = [
-  { icon: '🏆', value: '1850', label: '総合スコア' },
-  { icon: '📊', value: '75%', label: '勝率' },
-  { icon: '🔥', value: '12', label: '連続日数' },
-  { icon: '📚', value: '856', label: '学習単語数' },
+  { IconComponent: TrophyIcon, value: '1850', label: '総合スコア' },
+  { IconComponent: WinRateIcon, value: '75%', label: '勝率' },
+  { IconComponent: StreakIcon, value: '12', label: '連続日数' },
+  { IconComponent: WordsIcon, value: '856', label: '学習単語数' },
 ];
 
 const achievements = [
@@ -60,13 +64,20 @@ export default function ProfileScreen() {
 
         <View style={styles.content}>
           <View style={styles.statsGrid}>
-            {profileStats.map((stat, index) => (
-              <Card key={index} style={styles.statCard}>
-                <Text style={styles.statIcon}>{stat.icon}</Text>
-                <Text style={styles.statValue}>{stat.value}</Text>
-                <Text style={styles.statLabel}>{stat.label}</Text>
-              </Card>
-            ))}
+            {profileStats.map((stat, index) => {
+              const Icon = stat.IconComponent;
+              return (
+                <Card key={index} style={styles.statCard}>
+                  <View style={styles.iconWrapper}>
+                    <Icon width={32} height={32} />
+                  </View>
+                  <View>
+                    <Text style={styles.statValue}>{stat.value}</Text>
+                    <Text style={styles.statLabel}>{stat.label}</Text>
+                  </View>
+                </Card>
+              );
+            })}
           </View>
 
           <Card>
@@ -129,9 +140,9 @@ const styles = StyleSheet.create({
   content: { padding: 20, marginTop: -50, gap: 12 },
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   statCard: { width: '48%', flexDirection: 'row', alignItems: 'center', gap: 10 },
-  statIcon: { fontSize: 32 },
+  iconWrapper: { width: 32, height: 32 },
   statValue: { fontSize: 24, color: '#0e162b', fontWeight: '400', letterSpacing: 0.07 },
-  statLabel: { fontSize: 12, color: '#45556c', position: 'absolute', bottom: 16, left: 58 },
+  statLabel: { fontSize: 12, color: '#45556c' },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
   sectionTitle: { fontSize: 18, color: '#0e162b', fontWeight: '400', letterSpacing: -0.44, marginBottom: 20 },
   achievementCount: { fontSize: 14, color: '#45556c', letterSpacing: -0.15 },

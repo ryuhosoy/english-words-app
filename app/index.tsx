@@ -2,22 +2,25 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import RankingIcon from '../assets/images/container-12.svg';
+import QuizIcon from '../assets/images/container-3.svg';
+import DailyIcon from '../assets/images/container-5.svg';
 import Button from '../components/Button';
 import Card from '../components/Card';
 
 const features = [
   {
-    icon: '⏱️',
+    IconComponent: QuizIcon,
     title: 'リアルタイムクイズ',
     description: '時間制限ありのクイズに挑戦',
   },
   {
-    icon: '🏆',
+    IconComponent: RankingIcon,
     title: 'ランキング',
     description: '世界中のプレイヤーと競う',
   },
   {
-    icon: '📅',
+    IconComponent: DailyIcon,
     title: '毎日の学習',
     description: '継続して英単語をマスター',
   },
@@ -44,15 +47,20 @@ export default function WelcomeScreen() {
           <Text style={styles.subtitle}>チームで学ぶ英単語クイズ</Text>
 
           <Card style={styles.featuresCard}>
-            {features.map((feature, index) => (
-              <View key={index} style={styles.featureItem}>
-                <Text style={styles.featureIcon}>{feature.icon}</Text>
-                <View style={styles.featureText}>
-                  <Text style={styles.featureTitle}>{feature.title}</Text>
-                  <Text style={styles.featureDescription}>{feature.description}</Text>
+            {features.map((feature, index) => {
+              const Icon = feature.IconComponent;
+              return (
+                <View key={index} style={styles.featureItem}>
+                  <View style={styles.featureIconWrapper}>
+                    <Icon width={32} height={32} />
+                  </View>
+                  <View style={styles.featureText}>
+                    <Text style={styles.featureTitle}>{feature.title}</Text>
+                    <Text style={styles.featureDescription}>{feature.description}</Text>
+                  </View>
                 </View>
-              </View>
-            ))}
+              );
+            })}
           </Card>
 
           <Button
@@ -121,8 +129,9 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     gap: 12,
   },
-  featureIcon: {
-    fontSize: 32,
+  featureIconWrapper: {
+    width: 32,
+    height: 32,
   },
   featureText: {
     flex: 1,

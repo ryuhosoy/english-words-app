@@ -2,14 +2,15 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import FirstPlaceIcon from '../assets/images/container-8.svg';
 import Avatar from '../components/Avatar';
 import Button from '../components/Button';
 import Card from '../components/Card';
 
 const weeklyRankings = [
-  { rank: '🥇', name: 'Yuki', points: '2450pt' },
-  { rank: '2', name: 'Sakura', points: '2380pt' },
-  { rank: '3', name: 'Kenji', points: '2210pt' },
+  { rankIcon: FirstPlaceIcon, rank: '1', name: 'Yuki', points: '2450pt' },
+  { rankIcon: null, rank: '2', name: 'Sakura', points: '2380pt' },
+  { rankIcon: null, rank: '3', name: 'Kenji', points: '2210pt' },
 ];
 
 export default function HomeScreen() {
@@ -80,15 +81,24 @@ export default function HomeScreen() {
             </View>
 
             <View style={styles.rankingList}>
-              {weeklyRankings.map((player, index) => (
-                <View key={index} style={styles.rankingItem}>
-                  <View style={styles.rankingLeft}>
-                    <Text style={styles.rankIcon}>{player.rank}</Text>
-                    <Text style={styles.playerName}>{player.name}</Text>
+              {weeklyRankings.map((player, index) => {
+                const RankIcon = player.rankIcon;
+                return (
+                  <View key={index} style={styles.rankingItem}>
+                    <View style={styles.rankingLeft}>
+                      {RankIcon ? (
+                        <View style={styles.rankIconWrapper}>
+                          <RankIcon width={20} height={20} />
+                        </View>
+                      ) : (
+                        <Text style={styles.rankIcon}>{player.rank}</Text>
+                      )}
+                      <Text style={styles.playerName}>{player.name}</Text>
+                    </View>
+                    <Text style={styles.playerPoints}>{player.points}</Text>
                   </View>
-                  <Text style={styles.playerPoints}>{player.points}</Text>
-                </View>
-              ))}
+                );
+              })}
             </View>
           </Card>
 
@@ -249,6 +259,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
+  },
+  rankIconWrapper: {
+    width: 20,
+    height: 20,
   },
   rankIcon: {
     fontSize: 20,

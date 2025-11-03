@@ -2,6 +2,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import TeamIcon1 from '../assets/images/container-20.svg';
+import TeamIcon2 from '../assets/images/container-21.svg';
+import TeamIcon3 from '../assets/images/container-22.svg';
 import Avatar from '../components/Avatar';
 import Badge from '../components/Badge';
 import Button from '../components/Button';
@@ -14,9 +17,9 @@ const teamMembers = [
 ];
 
 const availableTeams = [
-  { icon: '📚', name: 'English Masters', level: '中級', status: 'オンライン', members: '3/4', full: false },
-  { icon: '⚔️', name: 'Vocab Warriors', level: '上級', status: 'オンライン', members: '2/4', full: false },
-  { icon: '🎓', name: 'Study Buddies', level: '初級', members: '4/4', full: true },
+  { IconComponent: TeamIcon1, name: 'English Masters', level: '中級', status: 'オンライン', members: '3/4', full: false },
+  { IconComponent: TeamIcon2, name: 'Vocab Warriors', level: '上級', status: 'オンライン', members: '2/4', full: false },
+  { IconComponent: TeamIcon3, name: 'Study Buddies', level: '初級', members: '4/4', full: true },
 ];
 
 export default function TeamLobbyScreen() {
@@ -65,32 +68,37 @@ export default function TeamLobbyScreen() {
         <View style={styles.availableSection}>
           <Text style={styles.sectionTitle}>参加可能なチーム</Text>
           <View style={styles.teamsList}>
-            {availableTeams.map((team, index) => (
-              <Card key={index} style={styles.availableTeamCard}>
-                <View style={styles.teamInfo}>
-                  <View style={styles.teamInfoLeft}>
-                    <Text style={styles.availableTeamIcon}>{team.icon}</Text>
-                    <View>
-                      <Text style={styles.availableTeamName}>{team.name}</Text>
-                      <View style={styles.teamBadges}>
-                        <Badge text={team.level} backgroundColor="#f1f5f9" textColor="#0e162b" style={styles.levelBadge} />
-                        {team.status && (
-                          <View style={styles.statusRow}>
-                            <View style={styles.onlineDot} />
-                            <Text style={styles.statusText}>{team.status}</Text>
-                          </View>
-                        )}
+            {availableTeams.map((team, index) => {
+              const Icon = team.IconComponent;
+              return (
+                <Card key={index} style={styles.availableTeamCard}>
+                  <View style={styles.teamInfo}>
+                    <View style={styles.teamInfoLeft}>
+                      <View style={styles.teamIconWrapper}>
+                        <Icon width={32} height={32} />
+                      </View>
+                      <View>
+                        <Text style={styles.availableTeamName}>{team.name}</Text>
+                        <View style={styles.teamBadges}>
+                          <Badge text={team.level} backgroundColor="#f1f5f9" textColor="#0e162b" style={styles.levelBadge} />
+                          {team.status && (
+                            <View style={styles.statusRow}>
+                              <View style={styles.onlineDot} />
+                              <Text style={styles.statusText}>{team.status}</Text>
+                            </View>
+                          )}
+                        </View>
                       </View>
                     </View>
+                    <View style={styles.membersInfo}>
+                      <Text style={styles.membersCount}>{team.members}</Text>
+                      <Text style={styles.membersLabel}>メンバー</Text>
+                    </View>
                   </View>
-                  <View style={styles.membersInfo}>
-                    <Text style={styles.membersCount}>{team.members}</Text>
-                    <Text style={styles.membersLabel}>メンバー</Text>
-                  </View>
-                </View>
-                {!team.full && <Button title="参加する" onPress={() => {}} style={styles.joinButton} textStyle={styles.joinButtonText} />}
-              </Card>
-            ))}
+                  {!team.full && <Button title="参加する" onPress={() => {}} style={styles.joinButton} textStyle={styles.joinButtonText} />}
+                </Card>
+              );
+            })}
           </View>
         </View>
 
@@ -138,7 +146,7 @@ const styles = StyleSheet.create({
   availableTeamCard: { borderWidth: 1, borderColor: '#e1e8f0', gap: 20 },
   teamInfo: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   teamInfoLeft: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
-  availableTeamIcon: { fontSize: 32 },
+  teamIconWrapper: { width: 32, height: 32 },
   availableTeamName: { fontSize: 16, color: '#0e162b', fontWeight: '400', letterSpacing: -0.31, marginBottom: 4 },
   teamBadges: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   levelBadge: { borderWidth: 1, borderColor: '#e1e8f0' },
