@@ -1,10 +1,16 @@
-import React from 'react';
-import { StyleSheet, Text, TextStyle, TouchableOpacity, ViewStyle } from 'react-native';
+import React from "react";
+import {
+  StyleSheet,
+  Text,
+  TextStyle,
+  TouchableOpacity,
+  ViewStyle,
+} from "react-native";
 
 interface ButtonProps {
   title: string;
   onPress: () => void;
-  variant?: 'primary' | 'secondary' | 'outline' | 'ghost';
+  variant?: "primary" | "secondary" | "outline" | "ghost";
   style?: ViewStyle;
   textStyle?: TextStyle;
 }
@@ -12,9 +18,9 @@ interface ButtonProps {
 export default function Button({
   title,
   onPress,
-  variant = 'primary',
+  variant = "primary",
   style,
-  textStyle
+  textStyle,
 }: ButtonProps) {
   return (
     <TouchableOpacity
@@ -22,7 +28,13 @@ export default function Button({
       onPress={onPress}
       activeOpacity={0.8}
     >
-      <Text style={[styles.text, styles[`${variant}Text` as keyof typeof styles] as TextStyle, textStyle]}>
+      <Text
+        style={[
+          styles.text,
+          styles[`${variant}Text` as keyof typeof styles] as TextStyle,
+          textStyle,
+        ]}
+      >
         {title}
       </Text>
     </TouchableOpacity>
@@ -34,38 +46,37 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingVertical: 12,
     paddingHorizontal: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   primary: {
-    backgroundColor: '#980ffa',
+    backgroundColor: "#980ffa",
   },
   secondary: {
-    backgroundColor: '#155cfb',
+    backgroundColor: "#155cfb",
   },
   outline: {
-    backgroundColor: 'transparent',
+    backgroundColor: "transparent",
     borderWidth: 1,
-    borderColor: '#e1e8f0',
+    borderColor: "#e1e8f0",
   },
   ghost: {
-    backgroundColor: 'transparent',
+    backgroundColor: "transparent",
   },
   text: {
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   primaryText: {
-    color: '#ffffff',
+    color: "#ffffff",
   },
   secondaryText: {
-    color: '#ffffff',
+    color: "#ffffff",
   },
   outlineText: {
-    color: '#0e162b',
+    color: "#0e162b",
   },
   ghostText: {
-    color: '#ffffff',
+    color: "#ffffff",
   },
 });
-

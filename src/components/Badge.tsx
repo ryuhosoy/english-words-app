@@ -1,5 +1,5 @@
-import React from 'react';
-import { StyleSheet, Text, View, ViewStyle } from 'react-native';
+import React from "react";
+import { StyleSheet, Text, View, ViewStyle } from "react-native";
 
 interface BadgeProps {
   text: string;
@@ -10,9 +10,9 @@ interface BadgeProps {
 
 export default function Badge({
   text,
-  backgroundColor = '#f0b100',
-  textColor = '#ffffff',
-  style
+  backgroundColor = "#f0b100",
+  textColor = "#ffffff",
+  style,
 }: BadgeProps) {
   return (
     <View style={[styles.badge, { backgroundColor }, style]}>
@@ -26,11 +26,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 14,
-    alignSelf: 'flex-start',
+    alignSelf: "flex-start",
   },
   text: {
     fontSize: 12,
-    fontWeight: '500',
+    fontWeight: "500",
   },
 });
-

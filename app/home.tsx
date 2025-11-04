@@ -1,16 +1,22 @@
-import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
-import React from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import FirstPlaceIcon from '../assets/images/container-8.svg';
-import Avatar from '../components/Avatar';
-import Button from '../components/Button';
-import Card from '../components/Card';
+import { LinearGradient } from "expo-linear-gradient";
+import { useRouter } from "expo-router";
+import React from "react";
+import {
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
+} from "react-native";
+import FirstPlaceIcon from "../assets/images/container-8.svg";
+import Avatar from "../components/Avatar";
+import Button from "../components/Button";
+import Card from "../components/Card";
 
 const weeklyRankings = [
-  { rankIcon: FirstPlaceIcon, rank: '1', name: 'Yuki', points: '2450pt' },
-  { rankIcon: null, rank: '2', name: 'Sakura', points: '2380pt' },
-  { rankIcon: null, rank: '3', name: 'Kenji', points: '2210pt' },
+  { rankIcon: FirstPlaceIcon, rank: "1", name: "Yuki", points: "2450pt" },
+  { rankIcon: null, rank: "2", name: "Sakura", points: "2380pt" },
+  { rankIcon: null, rank: "3", name: "Kenji", points: "2210pt" },
 ];
 
 export default function HomeScreen() {
@@ -20,7 +26,7 @@ export default function HomeScreen() {
     <View style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
         <LinearGradient
-          colors={['#ad46ff', '#4f39f6']}
+          colors={["#ad46ff", "#4f39f6"]}
           style={styles.headerGradient}
         >
           <View style={styles.header}>
@@ -38,7 +44,7 @@ export default function HomeScreen() {
                 <Text style={styles.userName}>Takeshiさん</Text>
               </View>
             </View>
-            <TouchableOpacity onPress={() => router.push('/profile')}>
+            <TouchableOpacity onPress={() => router.push("/profile")}>
               <Text style={styles.notificationIcon}>🔔</Text>
             </TouchableOpacity>
           </View>
@@ -56,11 +62,11 @@ export default function HomeScreen() {
 
         <View style={styles.content}>
           <TouchableOpacity
-            onPress={() => router.push('/quiz')}
+            onPress={() => router.push("/quiz")}
             activeOpacity={0.8}
           >
             <LinearGradient
-              colors={['#ad46ff', '#4f39f6']}
+              colors={["#ad46ff", "#4f39f6"]}
               style={styles.startGameButton}
             >
               <View style={styles.startGameContent}>
@@ -103,18 +109,22 @@ export default function HomeScreen() {
           </Card>
 
           <LinearGradient
-            colors={['#f44900', '#f36b10']}
+            colors={["#f44900", "#f36b10"]}
             style={styles.dailyChallenge}
           >
             <View style={styles.dailyChallengeContent}>
               <View>
-                <Text style={styles.dailyChallengeLabel}>デイリーチャレンジ</Text>
+                <Text style={styles.dailyChallengeLabel}>
+                  デイリーチャレンジ
+                </Text>
                 <Text style={styles.dailyChallengeTitle}>50単語マスター</Text>
-                <Text style={styles.dailyChallengeReward}>報酬: 100ポイント</Text>
+                <Text style={styles.dailyChallengeReward}>
+                  報酬: 100ポイント
+                </Text>
               </View>
               <Button
                 title="挑戦"
-                onPress={() => router.push('/quiz')}
+                onPress={() => router.push("/quiz")}
                 style={styles.challengeButton}
                 textStyle={styles.challengeButtonText}
               />
@@ -129,7 +139,7 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafb',
+    backgroundColor: "#f8fafb",
   },
   headerGradient: {
     paddingTop: 60,
@@ -139,49 +149,49 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 24,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 24,
   },
   userInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 12,
   },
   greeting: {
     fontSize: 14,
-    color: '#ffffff',
+    color: "#ffffff",
     opacity: 0.9,
     letterSpacing: -0.15,
   },
   userName: {
     fontSize: 18,
-    color: '#ffffff',
-    fontWeight: '400',
+    color: "#ffffff",
+    fontWeight: "400",
     letterSpacing: -0.44,
   },
   notificationIcon: {
     fontSize: 24,
   },
   scoreCard: {
-    backgroundColor: '#ffffff33',
+    backgroundColor: "#ffffff33",
   },
   scoreContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   scoreLabel: {
     fontSize: 14,
-    color: '#ffffff',
+    color: "#ffffff",
     opacity: 0.9,
     letterSpacing: -0.15,
   },
   scoreValue: {
     fontSize: 30,
-    color: '#ffffff',
-    fontWeight: '400',
+    color: "#ffffff",
+    fontWeight: "400",
     letterSpacing: 0.4,
   },
   trophyIcon: {
@@ -195,18 +205,18 @@ const styles = StyleSheet.create({
   startGameButton: {
     borderRadius: 14,
     padding: 20,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    shadowColor: '#000',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.1,
     shadowRadius: 20,
     elevation: 10,
   },
   startGameContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 12,
   },
   gameIcon: {
@@ -214,50 +224,50 @@ const styles = StyleSheet.create({
   },
   startGameTitle: {
     fontSize: 20,
-    color: '#ffffff',
-    fontWeight: '400',
+    color: "#ffffff",
+    fontWeight: "400",
     letterSpacing: -0.45,
   },
   startGameSubtitle: {
     fontSize: 14,
-    color: '#ffffffcc',
+    color: "#ffffffcc",
     letterSpacing: -0.15,
   },
   arrowIcon: {
     fontSize: 24,
-    color: '#ffffff',
+    color: "#ffffff",
   },
   rankingHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 20,
   },
   sectionTitle: {
     fontSize: 18,
-    color: '#0e162b',
-    fontWeight: '400',
+    color: "#0e162b",
+    fontWeight: "400",
     letterSpacing: -0.44,
   },
   viewAllButton: {
     fontSize: 14,
-    color: '#155cfb',
+    color: "#155cfb",
     letterSpacing: -0.15,
   },
   rankingList: {
     gap: 10,
   },
   rankingItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#f8fafb',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: "#f8fafb",
     padding: 10,
     borderRadius: 14,
   },
   rankingLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 10,
   },
   rankIconWrapper: {
@@ -269,12 +279,12 @@ const styles = StyleSheet.create({
   },
   playerName: {
     fontSize: 14,
-    color: '#0e162b',
+    color: "#0e162b",
     letterSpacing: -0.15,
   },
   playerPoints: {
     fontSize: 14,
-    color: '#45556c',
+    color: "#45556c",
     letterSpacing: -0.15,
   },
   dailyChallenge: {
@@ -282,37 +292,36 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   dailyChallengeContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   dailyChallengeLabel: {
     fontSize: 14,
-    color: '#ffffff',
+    color: "#ffffff",
     opacity: 0.9,
     letterSpacing: -0.15,
   },
   dailyChallengeTitle: {
     fontSize: 18,
-    color: '#ffffff',
-    fontWeight: '400',
+    color: "#ffffff",
+    fontWeight: "400",
     letterSpacing: -0.44,
     marginVertical: 4,
   },
   dailyChallengeReward: {
     fontSize: 14,
-    color: '#ffffff',
+    color: "#ffffff",
     opacity: 0.9,
     letterSpacing: -0.15,
   },
   challengeButton: {
-    backgroundColor: '#ffffff',
+    backgroundColor: "#ffffff",
     paddingVertical: 8,
     paddingHorizontal: 16,
   },
   challengeButtonText: {
-    color: '#f44900',
+    color: "#f44900",
     fontSize: 14,
   },
 });
-
