@@ -1,12 +1,12 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-import React from "react";
+import React, { useEffect } from "react";
 import {
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from "react-native";
 import WordsIcon from "../assets/images/container-10.svg";
 import StreakIcon from "../assets/images/container-2.svg";
@@ -16,6 +16,7 @@ import Avatar from "../components/Avatar";
 import Button from "../components/Button";
 import Card from "../components/Card";
 import ProgressBar from "../components/ProgressBar";
+import { useAuth } from "../contexts/AuthContext";
 
 const profileStats = [
   { IconComponent: TrophyIcon, value: "1850", label: "総合スコア" },
@@ -41,6 +42,17 @@ const recentGames = [
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const { user, session } = useAuth();
+
+  useEffect(() => {
+    console.log('📊 [ProfileScreen] マウント');
+    console.log('👤 [ProfileScreen] ユーザー情報:', user ? {
+      id: user.id,
+      email: user.email,
+      username: user.user_metadata?.username,
+    } : '未ログイン');
+    console.log('🔐 [ProfileScreen] セッション:', session ? 'あり' : 'なし');
+  }, [user, session]);
 
   return (
     <View style={styles.container}>

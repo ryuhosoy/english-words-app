@@ -1,6 +1,6 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-import React from "react";
+import React, { useEffect } from "react";
 import {
     ScrollView,
     StyleSheet,
@@ -12,6 +12,7 @@ import FirstPlaceIcon from "../assets/images/container-8.svg";
 import Avatar from "../components/Avatar";
 import Button from "../components/Button";
 import Card from "../components/Card";
+import { useAuth } from "../contexts/AuthContext";
 
 const weeklyRankings = [
   { rankIcon: FirstPlaceIcon, rank: "1", name: "Yuki", points: "2450pt" },
@@ -21,6 +22,17 @@ const weeklyRankings = [
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { user, session } = useAuth();
+
+  useEffect(() => {
+    console.log('🏠 [HomeScreen] マウント');
+    console.log('👤 [HomeScreen] 現在のユーザー:', user ? {
+      id: user.id,
+      email: user.email,
+      username: user.user_metadata?.username,
+    } : '未ログイン');
+    console.log('🔐 [HomeScreen] セッション状態:', session ? '有効' : '無効');
+  }, [user, session]);
 
   return (
     <View style={styles.container}>
