@@ -125,12 +125,18 @@ export interface Database {
           id: string
           team_id: string
           user_id: string
+          username: string
+          display_name: string | null
+          avatar_url: string | null
           is_ready: boolean
           joined_at: string
         }
         Insert: {
           team_id: string
           user_id: string
+          username?: string  // トリガーで自動設定
+          display_name?: string | null
+          avatar_url?: string | null
           is_ready?: boolean
         }
       }

@@ -1,6 +1,6 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import {
     ScrollView,
     StyleSheet,
@@ -13,6 +13,7 @@ import Avatar from "../components/Avatar";
 import Button from "../components/Button";
 import Card from "../components/Card";
 import { useAuth } from "../contexts/AuthContext";
+import { supabase } from "../lib/supabase";
 
 const weeklyRankings = [
   { rankIcon: FirstPlaceIcon, rank: "1", name: "Yuki", points: "2450pt" },
@@ -23,6 +24,8 @@ const weeklyRankings = [
 export default function HomeScreen() {
   const router = useRouter();
   const { user, session } = useAuth();
+  const [rankings, setRankings] = useState(weeklyRankings);
+  const [useRealtimeRanking, setUseRealtimeRanking] = useState(false);
 
   useEffect(() => {
     console.log('🏠 [HomeScreen] マウント');
@@ -33,6 +36,57 @@ export default function HomeScreen() {
     } : '未ログイン');
     console.log('🔐 [HomeScreen] セッション状態:', session ? '有効' : '無効');
   }, [user, session]);
+
+  // リアルタイムランキング購読
+  useEffect(() => {
+    if (user) {
+      console.log('📊 [Home] リアルタイムランキング購読開始');
+      
+      const channel = supabase
+        .channel('global_rankings')
+        .on('postgres_changes', {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+        }, () => {
+          console.log('🔄 [Home] ランキング更新検知');
+          loadRankings();
+        })
+        .subscribe((status) => {
+          console.log('📡 [Home] ランキング購読状態:', status);
+          if (status === 'SUBSCRIBED') {
+            setUseRealtimeRanking(true);
+          }
+        });
+      
+      return () => {
+        console.log('🧹 [Home] ランキング購読解除');
+        channel.unsubscribe();
+      };
+    }
+  }, [user]);
+
+  const loadRankings = async () => {
+    try {
+      const { data } = await supabase
+        .from('profiles')
+        .select('username, display_name, total_score')
+        .order('total_score', { ascending: false })
+        .limit(3);
+      
+      if (data) {
+        const formattedRankings = data.map((p: any, index) => ({
+          rankIcon: index === 0 ? FirstPlaceIcon : null,
+          rank: (index + 1).toString(),
+          name: p.display_name || p.username,
+          points: `${p.total_score}pt`,
+        }));
+        setRankings(formattedRankings);
+      }
+    } catch (error) {
+      console.error('❌ [Home] ランキング取得エラー:', error);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -94,12 +148,14 @@ export default function HomeScreen() {
 
           <Card>
             <View style={styles.rankingHeader}>
-              <Text style={styles.sectionTitle}>今週のランキング</Text>
+              <Text style={styles.sectionTitle}>
+                今週のランキング {useRealtimeRanking && <Text style={styles.liveText}>● LIVE</Text>}
+              </Text>
               <Text style={styles.viewAllButton}>すべて見る</Text>
             </View>
 
             <View style={styles.rankingList}>
-              {weeklyRankings.map((player, index) => {
+              {rankings.map((player, index) => {
                 const RankIcon = player.rankIcon;
                 return (
                   <View key={index} style={styles.rankingItem}>
@@ -260,6 +316,11 @@ const styles = StyleSheet.create({
     color: "#0e162b",
     fontWeight: "400",
     letterSpacing: -0.44,
+  },
+  liveText: {
+    fontSize: 10,
+    color: "#00ff00",
+    fontWeight: "bold",
   },
   viewAllButton: {
     fontSize: 14,

@@ -72,6 +72,9 @@ CREATE TABLE team_members (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   team_id UUID REFERENCES teams(id) ON DELETE CASCADE,
   user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  username TEXT NOT NULL,
+  display_name TEXT,
+  avatar_url TEXT,
   is_ready BOOLEAN DEFAULT FALSE,
   joined_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   UNIQUE(team_id, user_id)
@@ -211,4 +214,23 @@ BEGIN
   WHERE team_id = p_team_id AND user_id = p_user_id;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- チームメンバー追加時にプロフィール情報を自動コピー
+CREATE OR REPLACE FUNCTION sync_team_member_profile()
+RETURNS TRIGGER AS $$
+BEGIN
+  -- profilesテーブルからユーザー情報を取得して設定
+  SELECT username, display_name, avatar_url
+  INTO NEW.username, NEW.display_name, NEW.avatar_url
+  FROM profiles
+  WHERE id = NEW.user_id;
+  
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER before_team_member_insert
+  BEFORE INSERT ON team_members
+  FOR EACH ROW
+  EXECUTE FUNCTION sync_team_member_profile();
 

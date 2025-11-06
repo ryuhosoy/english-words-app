@@ -6,6 +6,14 @@ import FirstRankIcon from "../assets/images/container-17.svg";
 import Avatar from "../components/Avatar";
 import Card from "../components/Card";
 import ProgressBar from "../components/ProgressBar";
+import { useAuth } from "../contexts/AuthContext";
+import {
+  createQuizSession,
+  joinQuizSession,
+  QuizPlayer,
+  subscribeToSessionUpdates,
+  updateQuizScore,
+} from "../lib/realtime-helpers";
 
 const quizPlayers = [
   {
@@ -63,11 +71,71 @@ const quizData = [
 
 export default function QuizScreen() {
   const router = useRouter();
+  const { user } = useAuth();
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [score, setScore] = useState(0);
   const [timeLeft, setTimeLeft] = useState(15);
   const [correctAnswers, setCorrectAnswers] = useState(0);
   const [isQuizComplete, setIsQuizComplete] = useState(false);
+  
+  // リアルタイム用の状態
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [realtimePlayers, setRealtimePlayers] = useState<QuizPlayer[]>([]);
+  const [useRealtime, setUseRealtime] = useState(false); // リアルタイム機能のオン/オフ
+
+  // リアルタイムセッションの初期化
+  useEffect(() => {
+    // ユーザーがログインしている場合のみリアルタイム機能を有効化
+    if (user) {
+      initializeRealtimeSession();
+    }
+    
+    return () => {
+      // クリーンアップ（画面を離れる時）
+      console.log('🧹 [Quiz] リアルタイムセッション終了');
+    };
+  }, [user]);
+
+  const initializeRealtimeSession = async () => {
+    try {
+      console.log('🎮 [Quiz] リアルタイムセッション初期化開始');
+      
+      // 1. セッションを作成
+      const session = await createQuizSession();
+      setSessionId(session.id);
+      
+      // 2. 自分をセッションに参加させる
+      await joinQuizSession(
+        session.id,
+        user!.id,
+        user!.user_metadata?.username || user!.email || 'あなた'
+      );
+      
+      // 3. リアルタイム更新を購読
+      const channel = subscribeToSessionUpdates(session.id, (players) => {
+        console.log('👥 [Quiz] プレイヤー更新:', players.length, '人');
+        
+        // 自分のプレイヤーにマーク
+        const updatedPlayers = players.map(p => ({
+          ...p,
+          isYou: p.id === user!.id,
+        }));
+        
+        setRealtimePlayers(updatedPlayers);
+      });
+      
+      setUseRealtime(true);
+      console.log('✅ [Quiz] リアルタイム機能有効化');
+      
+      // クリーンアップ関数を返す
+      return () => {
+        channel.unsubscribe();
+      };
+    } catch (error) {
+      console.error('❌ [Quiz] リアルタイム初期化エラー:', error);
+      setUseRealtime(false);
+    }
+  };
 
   useEffect(() => {
     if (timeLeft > 0) {
@@ -89,11 +157,22 @@ export default function QuizScreen() {
     }
   }, [isQuizComplete]);
 
-  const handleAnswer = (selectedIndex: number) => {
+  const handleAnswer = async (selectedIndex: number) => {
     const isCorrect = selectedIndex === quizData[currentQuestion].correctIndex;
     if (isCorrect) {
-      setScore(score + 100);
+      const newScore = score + 100;
+      setScore(newScore);
       setCorrectAnswers(correctAnswers + 1);
+      
+      // リアルタイム機能が有効な場合、Supabaseに送信
+      if (useRealtime && sessionId && user) {
+        try {
+          await updateQuizScore(sessionId, user.id, newScore);
+          console.log('📤 [Quiz] スコア送信:', newScore);
+        } catch (error) {
+          console.error('❌ [Quiz] スコア送信エラー:', error);
+        }
+      }
     }
     handleNextQuestion();
   };
@@ -126,17 +205,27 @@ export default function QuizScreen() {
 
       <View style={styles.rankingSection}>
         <View style={styles.rankingHeader}>
-          <Text style={styles.rankingLabel}>🏆 ランキング</Text>
+          <Text style={styles.rankingLabel}>
+            🏆 ランキング {useRealtime && <Text style={styles.liveIndicator}>● LIVE</Text>}
+          </Text>
         </View>
         <View style={styles.playersContainer}>
-          {quizPlayers.map((player, index) => {
-            const RankIcon = player.rankIcon;
+          {(useRealtime && realtimePlayers.length > 0 ? realtimePlayers : quizPlayers.map((p, i) => ({
+            ...p,
+            id: i.toString(),
+            isYou: p.highlight,
+            score: 0,
+            rank: i + 1,
+          }))).slice(0, 3).map((player, index) => {
+            const RankIcon = index === 0 ? FirstRankIcon : null;
+            const displayRank = player.rank || (index + 1);
+            
             return (
               <View
-                key={index}
+                key={player.id || index}
                 style={[
                   styles.playerCard,
-                  player.highlight && styles.playerCardHighlight,
+                  player.isYou && styles.playerCardHighlight,
                 ]}
               >
                 {RankIcon ? (
@@ -144,19 +233,19 @@ export default function QuizScreen() {
                     <RankIcon width={16} height={16} />
                   </View>
                 ) : (
-                  <Text style={styles.playerRank}>{player.rank}</Text>
+                  <Text style={styles.playerRank}>{displayRank}</Text>
                 )}
                 <Avatar
-                  initial={player.initial}
+                  initial={player.avatar || player.initial || 'P'}
                   size={26}
-                  backgroundColor={player.highlight ? "#f0b100" : "#ad46ff"}
-                  borderColor={player.highlight ? "#fdc700" : "#ffffff33"}
+                  backgroundColor={player.isYou ? "#f0b100" : "#ad46ff"}
+                  borderColor={player.isYou ? "#fdc700" : "#ffffff33"}
                   borderWidth={2}
                 />
                 <Text
                   style={[
                     styles.playerName,
-                    player.highlight && styles.playerNameHighlight,
+                    player.isYou && styles.playerNameHighlight,
                   ]}
                 >
                   {player.name}
@@ -164,10 +253,10 @@ export default function QuizScreen() {
                 <Text
                   style={[
                     styles.playerPoints,
-                    player.highlight && styles.playerPointsHighlight,
+                    player.isYou && styles.playerPointsHighlight,
                   ]}
                 >
-                  {player.points}
+                  {useRealtime ? `${player.score}pt` : (player.points || '0pt')}
                 </Text>
               </View>
             );
@@ -223,6 +312,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   rankingLabel: { fontSize: 12, color: "#ffffff" },
+  liveIndicator: { fontSize: 10, color: "#00ff00", fontWeight: "bold" },
   playersContainer: { flexDirection: "row", gap: 8 },
   playerCard: {
     flex: 1,

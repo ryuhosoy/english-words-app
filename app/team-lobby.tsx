@@ -1,6 +1,6 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   ScrollView,
   StyleSheet,
@@ -15,8 +15,10 @@ import Avatar from "../components/Avatar";
 import Badge from "../components/Badge";
 import Button from "../components/Button";
 import Card from "../components/Card";
+import { useAuth } from "../contexts/AuthContext";
+import { subscribeToTeamUpdates, toggleMemberReady } from "../lib/realtime-helpers";
 
-const teamMembers = [
+const initialTeamMembers = [
   { name: "あなた", initial: "あ", status: "準備OK", ready: true },
   { name: "Yuki", initial: "Y", status: "準備OK", ready: true },
   { name: "Mei", initial: "M", status: "待機中", ready: false },
@@ -50,6 +52,49 @@ const availableTeams = [
 
 export default function TeamLobbyScreen() {
   const router = useRouter();
+  const { user } = useAuth();
+  const [teamMembers, setTeamMembers] = useState(initialTeamMembers);
+  const [useRealtime, setUseRealtime] = useState(false);
+  const teamId = 'demo_team_001'; // デモ用のチームID
+
+  // リアルタイムメンバー同期
+  useEffect(() => {
+    if (user) {
+      console.log('👥 [TeamLobby] リアルタイムメンバー同期開始');
+      
+      const channel = subscribeToTeamUpdates(teamId, (members) => {
+        console.log('🔄 [TeamLobby] メンバー更新:', members);
+        
+        // メンバーデータを画面用に変換（JOINなしで直接取得！）
+        const formattedMembers = members.map((m: any) => ({
+          name: m.display_name || m.username || 'プレイヤー',
+          initial: (m.username || 'P')[0],
+          status: m.is_ready ? '準備OK' : '待機中',
+          ready: m.is_ready,
+          userId: m.user_id,
+        }));
+        
+        setTeamMembers(formattedMembers);
+        setUseRealtime(true);
+      });
+      
+      return () => {
+        console.log('🧹 [TeamLobby] リアルタイム購読解除');
+        channel.unsubscribe();
+      };
+    }
+  }, [user]);
+
+  const handleToggleReady = async () => {
+    if (user && useRealtime) {
+      try {
+        await toggleMemberReady(teamId, user.id);
+        console.log('✅ [TeamLobby] 準備状態切り替え');
+      } catch (error) {
+        console.error('❌ [TeamLobby] 準備状態更新エラー:', error);
+      }
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -66,7 +111,9 @@ export default function TeamLobbyScreen() {
           <View style={styles.teamHeader}>
             <View style={styles.teamNameRow}>
               <Text style={styles.teamIcon}>👥</Text>
-              <Text style={styles.teamName}>English Masters</Text>
+              <Text style={styles.teamName}>
+                English Masters {useRealtime && <Text style={styles.liveText}>● LIVE</Text>}
+              </Text>
             </View>
             <Badge text="中級" />
           </View>
@@ -214,6 +261,11 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontWeight: "400",
     letterSpacing: -0.31,
+  },
+  liveText: {
+    fontSize: 10,
+    color: "#00ff00",
+    fontWeight: "bold",
   },
   membersList: { gap: 10 },
   memberItem: {

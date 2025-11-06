@@ -183,6 +183,7 @@ export async function createTeam(name: string, level: string, userId: string) {
   if (teamError) throw teamError;
 
   // 作成者をチームメンバーに追加
+  // usernameは自動的にトリガーで設定される
   const { error: memberError } = await supabase
     .from('team_members')
     .insert({ team_id: team.id, user_id: userId, is_ready: true });
@@ -194,6 +195,7 @@ export async function createTeam(name: string, level: string, userId: string) {
 
 // チームに参加
 export async function joinTeam(teamId: string, userId: string) {
+  // usernameは自動的にトリガーで設定される
   const { data, error } = await supabase
     .from('team_members')
     .insert({ team_id: teamId, user_id: userId })
@@ -204,14 +206,11 @@ export async function joinTeam(teamId: string, userId: string) {
   return data;
 }
 
-// チームメンバー取得
+// チームメンバー取得（JOINなし！）
 export async function getTeamMembers(teamId: string) {
   const { data, error } = await supabase
     .from('team_members')
-    .select(`
-      *,
-      profiles (username, display_name, avatar_url)
-    `)
+    .select('*')  // ← usernameも含まれている！
     .eq('team_id', teamId);
 
   if (error) throw error;
