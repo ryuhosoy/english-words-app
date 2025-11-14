@@ -128,7 +128,7 @@ export default function HomeScreen() {
 
         <View style={styles.content}>
           <TouchableOpacity
-            onPress={() => router.push("/quiz")}
+            onPress={() => router.push("/matching")}
             activeOpacity={0.8}
           >
             <LinearGradient
@@ -192,7 +192,7 @@ export default function HomeScreen() {
               </View>
               <Button
                 title="挑戦"
-                onPress={() => router.push("/quiz")}
+                onPress={() => router.push("/matching")}
                 style={styles.challengeButton}
                 textStyle={styles.challengeButtonText}
               />

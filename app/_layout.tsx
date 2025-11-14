@@ -16,15 +16,16 @@ export default function RootLayout() {
   return (
     <AuthProvider>
       <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="index" />
-          <Stack.Screen name="login" />
-          <Stack.Screen name="home" />
-          <Stack.Screen name="quiz" />
-          <Stack.Screen name="result" />
-          <Stack.Screen name="profile" />
-          <Stack.Screen name="team-lobby" />
-        </Stack>
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="index" />
+        <Stack.Screen name="login" />
+        <Stack.Screen name="home" />
+        <Stack.Screen name="matching" />
+        <Stack.Screen name="quiz" />
+        <Stack.Screen name="result" />
+        <Stack.Screen name="profile" />
+        <Stack.Screen name="team-lobby" />
+      </Stack>
         <StatusBar style="auto" />
       </ThemeProvider>
     </AuthProvider>

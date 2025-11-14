@@ -1,5 +1,5 @@
 import { LinearGradient } from "expo-linear-gradient";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import FirstRankIcon from "../assets/images/container-17.svg";
@@ -71,6 +71,7 @@ const quizData = [
 
 export default function QuizScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams();
   const { user } = useAuth();
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [score, setScore] = useState(0);
@@ -79,43 +80,43 @@ export default function QuizScreen() {
   const [isQuizComplete, setIsQuizComplete] = useState(false);
   
   // リアルタイム用の状態
-  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [sessionId, setSessionId] = useState<string | null>(params.sessionId as string || null);
+  const [teamId] = useState<string | null>(params.teamId as string || null);
   const [realtimePlayers, setRealtimePlayers] = useState<QuizPlayer[]>([]);
-  const [useRealtime, setUseRealtime] = useState(false); // リアルタイム機能のオン/オフ
+  const [useRealtime, setUseRealtime] = useState(false);
 
   // リアルタイムセッションの初期化
   useEffect(() => {
-    // ユーザーがログインしている場合のみリアルタイム機能を有効化
-    if (user) {
+    // マッチングから来た場合（teamId, sessionIdがある）または通常モード
+    if (user && teamId && sessionId) {
+      console.log('🎮 [Quiz] マッチングモード - チーム:', teamId);
+      initializeRealtimeWithExistingSession(sessionId);
+    } else if (user) {
+      console.log('🎮 [Quiz] ソロモード');
+      // ソロモードの場合も簡易セッションを作成
       initializeRealtimeSession();
     }
     
     return () => {
-      // クリーンアップ（画面を離れる時）
       console.log('🧹 [Quiz] リアルタイムセッション終了');
     };
-  }, [user]);
+  }, [user, teamId, sessionId]);
 
-  const initializeRealtimeSession = async () => {
+  const initializeRealtimeWithExistingSession = async (existingSessionId: string) => {
     try {
-      console.log('🎮 [Quiz] リアルタイムセッション初期化開始');
+      console.log('🎮 [Quiz] 既存セッションで初期化:', existingSessionId);
       
-      // 1. セッションを作成
-      const session = await createQuizSession();
-      setSessionId(session.id);
-      
-      // 2. 自分をセッションに参加させる
+      // 既に作成されているセッションに参加
       await joinQuizSession(
-        session.id,
+        existingSessionId,
         user!.id,
         user!.user_metadata?.username || user!.email || 'あなた'
       );
       
-      // 3. リアルタイム更新を購読
-      const channel = subscribeToSessionUpdates(session.id, (players) => {
+      // リアルタイム更新を購読
+      const channel = subscribeToSessionUpdates(existingSessionId, (players) => {
         console.log('👥 [Quiz] プレイヤー更新:', players.length, '人');
         
-        // 自分のプレイヤーにマーク
         const updatedPlayers = players.map(p => ({
           ...p,
           isYou: p.id === user!.id,
@@ -125,12 +126,39 @@ export default function QuizScreen() {
       });
       
       setUseRealtime(true);
-      console.log('✅ [Quiz] リアルタイム機能有効化');
+      console.log('✅ [Quiz] リアルタイム機能有効化（マッチングモード）');
       
-      // クリーンアップ関数を返す
-      return () => {
-        channel.unsubscribe();
-      };
+      return () => channel.unsubscribe();
+    } catch (error) {
+      console.error('❌ [Quiz] リアルタイム初期化エラー:', error);
+      setUseRealtime(false);
+    }
+  };
+
+  const initializeRealtimeSession = async () => {
+    try {
+      console.log('🎮 [Quiz] リアルタイムセッション初期化開始（ソロモード）');
+      
+      const session = await createQuizSession();
+      setSessionId(session.id);
+      
+      await joinQuizSession(
+        session.id,
+        user!.id,
+        user!.user_metadata?.username || user!.email || 'あなた'
+      );
+      
+      const channel = subscribeToSessionUpdates(session.id, (players) => {
+        const updatedPlayers = players.map(p => ({
+          ...p,
+          isYou: p.id === user!.id,
+        }));
+        setRealtimePlayers(updatedPlayers);
+      });
+      
+      setUseRealtime(true);
+      
+      return () => channel.unsubscribe();
     } catch (error) {
       console.error('❌ [Quiz] リアルタイム初期化エラー:', error);
       setUseRealtime(false);
