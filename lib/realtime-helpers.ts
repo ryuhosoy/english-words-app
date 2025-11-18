@@ -1,5 +1,7 @@
 import { supabase } from './supabase';
 
+const FIXED_TEAM_ID = process.env.EXPO_PUBLIC_FIXED_TEAM_ID || null;
+
 export interface QuizPlayer {
   id: string;
   name: string;
@@ -16,6 +18,14 @@ export async function findOrCreateMatchingTeam(
   level: string = '中級'
 ) {
   console.log('🔍 [Matching] チーム検索開始 - レベル:', level);
+
+  if (FIXED_TEAM_ID) {
+    const fixedTeam = await tryJoinFixedTeam(FIXED_TEAM_ID, userId, level);
+    if (fixedTeam) {
+      return fixedTeam;
+    }
+    console.warn('⚠️ [Matching] 固定チームに参加できなかったため通常フローにフォールバックします');
+  }
 
   let retryCount = 0;
   const maxRetries = 3;
@@ -149,13 +159,119 @@ export async function findOrCreateMatchingTeam(
   throw new Error('マッチングに失敗しました');
 }
 
-// クイズセッションを作成
-export async function createQuizSession() {
-  const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  
+async function tryJoinFixedTeam(teamId: string, userId: string, level: string) {
+  console.log('🎯 [Matching] 固定チームを優先的に使用します:', teamId);
+
+  const { data: team, error } = await supabase
+    .from('teams')
+    .select(`
+      *,
+      team_members (user_id)
+    `)
+    .eq('id', teamId)
+    .eq('level', level)
+    .single();
+
+  if (error) {
+    console.error('❌ [Matching] 固定チーム取得エラー:', error);
+    return null;
+  }
+
+  // まず既に自分がメンバーかどうかをチェック
+  const { data: existingMembers, error: existingError } = await supabase
+    .from('team_members')
+    .select('id')
+    .eq('team_id', team.id)
+    .eq('user_id', userId);
+
+  if (existingError) {
+    console.error('❌ [Matching] 固定チーム参加状況確認エラー:', existingError);
+    return null;
+  }
+
+  // 既にメンバーなら満員でも参加可能
+  if (existingMembers && existingMembers.length > 0) {
+    console.log('✅ [Matching] 固定チームに既に参加済み（満員でもOK）');
+    return team;
+  }
+
+  // 新規参加の場合のみ満員チェック
+  const memberCount = team.team_members?.length || 0;
+  const maxMembers = team.max_members ?? 4;
+  if (memberCount >= maxMembers) {
+    console.warn('⚠️ [Matching] 固定チームが満員のため参加できません');
+    return null;
+  }
+
+  // 新規参加
+  if (!existingMembers || existingMembers.length === 0) {
+    const { error: joinError } = await supabase
+      .from('team_members')
+      .insert({
+        team_id: team.id,
+        user_id: userId,
+        is_ready: true,
+      });
+
+    if (joinError) {
+      console.error('❌ [Matching] 固定チーム参加エラー:', joinError);
+      return null;
+    }
+
+    team.team_members = [...(team.team_members || []), { user_id: userId }];
+  } else {
+    console.log('ℹ️ [Matching] 固定チームに既に参加済みです');
+  }
+
+  console.log('✅ [Matching] 固定チーム参加成功:', team.name);
+  return team;
+}
+
+// チームの既存セッションを探す
+export async function findExistingSession(teamId: string) {
   const { data, error } = await supabase
     .from('quiz_sessions')
-    .insert({ id: sessionId })
+    .select('*')
+    .eq('team_id', teamId)
+    .is('ended_at', null) // 終了していないセッション
+    .order('started_at', { ascending: false })
+    .limit(1)
+    .single();
+
+  if (error && error.code !== 'PGRST116') { // PGRST116は「見つからない」エラー
+    console.error('❌ セッション検索エラー:', error);
+    return null;
+  }
+
+  if (data) {
+    console.log('✅ 既存セッションを発見:', data.id);
+    return data;
+  }
+
+  return null;
+}
+
+// クイズセッションを作成（既存があればそれを使う）
+export async function createQuizSession(teamId?: string) {
+  // teamIdが指定されている場合は既存セッションを探す
+  if (teamId) {
+    const existing = await findExistingSession(teamId);
+    if (existing) {
+      return existing;
+    }
+  }
+
+  const sessionData: any = {};
+  
+  // teamIdが指定されている場合は紐付け
+  if (teamId) {
+    sessionData.team_id = teamId;
+  }
+  
+  // UUIDはデータベースで自動生成される（idを指定しない）
+  const { data, error } = await supabase
+    .from('quiz_sessions')
+    .insert(sessionData)
     .select()
     .single();
 
@@ -164,12 +280,28 @@ export async function createQuizSession() {
     throw error;
   }
 
-  console.log('✅ クイズセッション作成:', sessionId);
+  console.log('✅ クイズセッション作成:', data.id);
   return data;
 }
 
 // セッションにプレイヤーを追加
 export async function joinQuizSession(sessionId: string, userId: string, userName: string) {
+  console.log('🎮 [Realtime] joinQuizSession 開始:', sessionId, userId, userName);
+  
+  // 既に参加しているかチェック
+  const { data: existingParticipant } = await supabase
+    .from('quiz_session_participants')
+    .select('*')
+    .eq('session_id', sessionId)
+    .eq('user_id', userId)
+    .single();
+
+  if (existingParticipant) {
+    console.log('✅ セッションに既に参加済み:', userName);
+    return existingParticipant;
+  }
+
+  // 新規参加
   const { data, error } = await supabase
     .from('quiz_session_participants')
     .insert({
@@ -182,6 +314,22 @@ export async function joinQuizSession(sessionId: string, userId: string, userNam
     .single();
 
   if (error) {
+    // 重複エラー（念のため）
+    if (error.code === '23505') {
+      console.log('✅ セッションに既に参加済み（重複検出）:', userName);
+      // 既存レコードを取得して返す
+      const { data: existing } = await supabase
+        .from('quiz_session_participants')
+        .select('*')
+        .eq('session_id', sessionId)
+        .eq('user_id', userId)
+        .single();
+      
+      if (existing) {
+        return existing;
+      }
+    }
+    
     console.error('❌ セッション参加エラー:', error);
     throw error;
   }

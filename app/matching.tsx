@@ -13,6 +13,7 @@ import Button from "../components/Button";
 import Card from "../components/Card";
 import { useAuth } from "../contexts/AuthContext";
 import {
+    createQuizSession,
     findOrCreateMatchingTeam,
     leaveTeam,
     subscribeToTeamUpdates,
@@ -65,13 +66,26 @@ export default function MatchingScreen() {
         setStatus("マッチング完了！");
         console.log("🎉 [Matching] マッチング完了 - クイズ開始");
 
-        setTimeout(() => {
-          isNavigatingRef.current = true;
-          router.replace({
-            pathname: "/quiz",
-            params: { teamId, sessionId: `session_${teamId}` },
-          });
-        }, 1500);
+        // クイズセッションを作成
+        createQuizSession(teamId).then((session) => {
+          setTimeout(() => {
+            isNavigatingRef.current = true;
+            router.replace({
+              pathname: "/quiz",
+              params: { teamId, sessionId: session.id },
+            });
+          }, 1500);
+        }).catch((error) => {
+          console.error('❌ [Matching] セッション作成エラー:', error);
+          // エラーでもクイズ画面に遷移（フォールバック）
+          setTimeout(() => {
+            isNavigatingRef.current = true;
+            router.replace({
+              pathname: "/quiz",
+              params: { teamId },
+            });
+          }, 1500);
+        });
       } else {
         setStatus(`メンバー待機中 (${updatedMembers.length}/4)`);
       }

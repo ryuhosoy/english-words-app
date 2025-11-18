@@ -1,6 +1,7 @@
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import FirstRankIcon from "../assets/images/container-17.svg";
 import Avatar from "../components/Avatar";
@@ -84,25 +85,33 @@ export default function QuizScreen() {
   const [teamId] = useState<string | null>(params.teamId as string || null);
   const [realtimePlayers, setRealtimePlayers] = useState<QuizPlayer[]>([]);
   const [useRealtime, setUseRealtime] = useState(false);
+  const channelRef = useRef<RealtimeChannel | null>(null);
 
-  // リアルタイムセッションの初期化
-  useEffect(() => {
-    // マッチングから来た場合（teamId, sessionIdがある）または通常モード
-    if (user && teamId && sessionId) {
-      console.log('🎮 [Quiz] マッチングモード - チーム:', teamId);
-      initializeRealtimeWithExistingSession(sessionId);
-    } else if (user) {
-      console.log('🎮 [Quiz] ソロモード');
-      // ソロモードの場合も簡易セッションを作成
-      initializeRealtimeSession();
+  const handleRealtimePlayersUpdate = useCallback((players: QuizPlayer[]) => {
+    const normalized = players.map((p) => ({
+      ...p,
+      isYou: p.id === user?.id,
+    }));
+    setRealtimePlayers(normalized);
+
+    const yourself = normalized.find((p) => p.isYou);
+    if (yourself) {
+      setScore(yourself.score);
     }
-    
-    return () => {
-      console.log('🧹 [Quiz] リアルタイムセッション終了');
-    };
-  }, [user, teamId, sessionId]);
+  }, [user?.id]);
 
-  const initializeRealtimeWithExistingSession = async (existingSessionId: string) => {
+  const setupRealtimeSubscription = useCallback((targetSessionId: string) => {
+    if (channelRef.current) {
+      channelRef.current.unsubscribe();
+      channelRef.current = null;
+    }
+
+    const channel = subscribeToSessionUpdates(targetSessionId, handleRealtimePlayersUpdate);
+    channelRef.current = channel;
+    setUseRealtime(true);
+  }, [handleRealtimePlayersUpdate]);
+
+  const initializeRealtimeWithExistingSession = useCallback(async (existingSessionId: string) => {
     try {
       console.log('🎮 [Quiz] 既存セッションで初期化:', existingSessionId);
       
@@ -112,30 +121,18 @@ export default function QuizScreen() {
         user!.id,
         user!.user_metadata?.username || user!.email || 'あなた'
       );
+
+      console.log('joinQuizSession成功 in initializeRealtimeWithExistingSession');
       
-      // リアルタイム更新を購読
-      const channel = subscribeToSessionUpdates(existingSessionId, (players) => {
-        console.log('👥 [Quiz] プレイヤー更新:', players.length, '人');
-        
-        const updatedPlayers = players.map(p => ({
-          ...p,
-          isYou: p.id === user!.id,
-        }));
-        
-        setRealtimePlayers(updatedPlayers);
-      });
-      
-      setUseRealtime(true);
+      setupRealtimeSubscription(existingSessionId);
       console.log('✅ [Quiz] リアルタイム機能有効化（マッチングモード）');
-      
-      return () => channel.unsubscribe();
     } catch (error) {
       console.error('❌ [Quiz] リアルタイム初期化エラー:', error);
       setUseRealtime(false);
     }
-  };
+  }, [setupRealtimeSubscription, user]);
 
-  const initializeRealtimeSession = async () => {
+  const initializeRealtimeSession = useCallback(async () => {
     try {
       console.log('🎮 [Quiz] リアルタイムセッション初期化開始（ソロモード）');
       
@@ -148,22 +145,33 @@ export default function QuizScreen() {
         user!.user_metadata?.username || user!.email || 'あなた'
       );
       
-      const channel = subscribeToSessionUpdates(session.id, (players) => {
-        const updatedPlayers = players.map(p => ({
-          ...p,
-          isYou: p.id === user!.id,
-        }));
-        setRealtimePlayers(updatedPlayers);
-      });
-      
-      setUseRealtime(true);
-      
-      return () => channel.unsubscribe();
+      setupRealtimeSubscription(session.id);
     } catch (error) {
       console.error('❌ [Quiz] リアルタイム初期化エラー:', error);
       setUseRealtime(false);
     }
-  };
+  }, [setupRealtimeSubscription, user]);
+
+  // リアルタイムセッションの初期化
+  useEffect(() => {
+    if (!user) return;
+
+    if (teamId && sessionId) {
+      console.log('🎮 [Quiz] マッチングモード - チーム:', teamId);
+      initializeRealtimeWithExistingSession(sessionId);
+    } else {
+      console.log('🎮 [Quiz] ソロモード');
+      initializeRealtimeSession();
+    }
+
+    return () => {
+      console.log('🧹 [Quiz] リアルタイムセッション終了');
+      if (channelRef.current) {
+        channelRef.current.unsubscribe();
+        channelRef.current = null;
+      }
+    };
+  }, [initializeRealtimeSession, initializeRealtimeWithExistingSession, sessionId, teamId, user]);
 
   useEffect(() => {
     if (timeLeft > 0) {
@@ -215,6 +223,17 @@ export default function QuizScreen() {
   };
 
   const progress = ((currentQuestion + 1) / quizData.length) * 100;
+  const fallbackPlayers: QuizPlayer[] = quizPlayers.map((player, index) => ({
+    id: `fallback_${index}`,
+    name: player.name,
+    score: parseInt(player.points?.replace(/\D/g, "") || "0", 10),
+    rank: index + 1,
+    avatar: (player.initial || player.name[0] || "P").slice(0, 1),
+    isYou: player.highlight,
+  }));
+  const rankingPlayers = (
+    useRealtime && realtimePlayers.length > 0 ? realtimePlayers : fallbackPlayers
+  ).slice(0, 3);
 
   return (
     <LinearGradient colors={["#ad46ff", "#4f39f6"]} style={styles.container}>
@@ -238,13 +257,7 @@ export default function QuizScreen() {
           </Text>
         </View>
         <View style={styles.playersContainer}>
-          {(useRealtime && realtimePlayers.length > 0 ? realtimePlayers : quizPlayers.map((p, i) => ({
-            ...p,
-            id: i.toString(),
-            isYou: p.highlight,
-            score: 0,
-            rank: i + 1,
-          }))).slice(0, 3).map((player, index) => {
+          {rankingPlayers.map((player, index) => {
             const RankIcon = index === 0 ? FirstRankIcon : null;
             const displayRank = player.rank || (index + 1);
             
@@ -264,7 +277,7 @@ export default function QuizScreen() {
                   <Text style={styles.playerRank}>{displayRank}</Text>
                 )}
                 <Avatar
-                  initial={player.avatar || player.initial || 'P'}
+                  initial={player.avatar || player.name?.[0] || 'P'}
                   size={26}
                   backgroundColor={player.isYou ? "#f0b100" : "#ad46ff"}
                   borderColor={player.isYou ? "#fdc700" : "#ffffff33"}
@@ -284,7 +297,7 @@ export default function QuizScreen() {
                     player.isYou && styles.playerPointsHighlight,
                   ]}
                 >
-                  {useRealtime ? `${player.score}pt` : (player.points || '0pt')}
+                  {`${player.score ?? 0}pt`}
                 </Text>
               </View>
             );
