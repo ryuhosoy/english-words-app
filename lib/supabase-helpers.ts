@@ -62,7 +62,11 @@ export async function getWeeklyRankings(limit: number = 10) {
 }
 
 // クイズ結果を保存
-export async function saveQuizAttempt(attempt: QuizAttempt) {
+export async function saveQuizAttempt(
+  attempt: QuizAttempt, 
+  isWin: boolean = false,
+  wordsLearned: number = 0
+) {
   const { data, error } = await supabase
     .from('quiz_attempts')
     .insert(attempt)
@@ -71,26 +75,80 @@ export async function saveQuizAttempt(attempt: QuizAttempt) {
 
   if (error) throw error;
 
-  // プロフィールのスコアとゲーム数を更新
-  await updateProfileAfterQuiz(attempt.user_id, attempt.score);
+  // プロフィールの統計情報を更新
+  await updateProfileAfterQuiz(attempt.user_id, attempt.score, isWin, wordsLearned);
 
   return data;
 }
 
 // クイズ後のプロフィール更新
-async function updateProfileAfterQuiz(userId: string, scoreGained: number) {
+async function updateProfileAfterQuiz(
+  userId: string, 
+  scoreGained: number, 
+  isWin: boolean = false,
+  wordsLearned: number = 0
+) {
   const profile = await getProfile(userId);
   
   const newTotalScore = profile.total_score + scoreGained;
   const newGamesPlayed = profile.games_played + 1;
   const newExperience = profile.experience + scoreGained;
   const newLevel = Math.floor(newExperience / 500) + 1;
+  
+  // 勝率の計算
+  const currentWins = Math.round((profile.win_rate * profile.games_played) / 100);
+  const newWins = isWin ? currentWins + 1 : currentWins;
+  const newWinRate = newGamesPlayed > 0 ? Math.round((newWins / newGamesPlayed) * 100 * 100) / 100 : 0;
+  
+  // 連続日数の更新（クイズ履歴から最後にプレイした日を取得）
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  // 最後にプレイした日を取得
+  const { data: lastAttempt } = await supabase
+    .from('quiz_attempts')
+    .select('completed_at')
+    .eq('user_id', userId)
+    .order('completed_at', { ascending: false })
+    .limit(2);
+  
+  let newStreakDays = 1;
+  
+  if (lastAttempt && lastAttempt.length > 0) {
+    // 最後にプレイした日（今日のクイズを除く）
+    const lastPlayDate = lastAttempt.length > 1 
+      ? new Date(lastAttempt[1].completed_at)
+      : new Date(lastAttempt[0].completed_at);
+    lastPlayDate.setHours(0, 0, 0, 0);
+    
+    const daysDiff = Math.floor((today.getTime() - lastPlayDate.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (daysDiff === 0) {
+      // 同じ日に複数回プレイした場合、連続日数はそのまま
+      newStreakDays = profile.streak_days > 0 ? profile.streak_days : 1;
+    } else if (daysDiff === 1) {
+      // 前日なら連続日数を増やす
+      newStreakDays = profile.streak_days + 1;
+    } else {
+      // 2日以上空いたらリセット
+      newStreakDays = 1;
+    }
+  } else {
+    // 初回プレイ
+    newStreakDays = 1;
+  }
+  
+  // 学習単語数の更新
+  const newTotalWordsLearned = profile.total_words_learned + wordsLearned;
 
   await updateProfile(userId, {
     total_score: newTotalScore,
     games_played: newGamesPlayed,
     experience: newExperience,
     level: newLevel,
+    win_rate: newWinRate,
+    streak_days: newStreakDays,
+    total_words_learned: newTotalWordsLearned,
   });
 }
 

@@ -188,10 +188,16 @@ export default function QuizScreen() {
     if (isQuizComplete) {
       router.push({
         pathname: "/result",
-        params: { score, correctAnswers, totalQuestions: quizData.length },
+        params: { 
+          score, 
+          correctAnswers, 
+          totalQuestions: quizData.length,
+          sessionId: sessionId || '',
+          mode: teamId ? 'チーム' : 'ソロ',
+        },
       });
     }
-  }, [isQuizComplete]);
+  }, [isQuizComplete, score, correctAnswers, sessionId, teamId]);
 
   const handleAnswer = async (selectedIndex: number) => {
     const isCorrect = selectedIndex === quizData[currentQuestion].correctIndex;

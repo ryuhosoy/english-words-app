@@ -1,6 +1,6 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ScrollView,
   StyleSheet,
@@ -17,42 +17,86 @@ import Button from "../components/Button";
 import Card from "../components/Card";
 import ProgressBar from "../components/ProgressBar";
 import { useAuth } from "../contexts/AuthContext";
-
-const profileStats = [
-  { IconComponent: TrophyIcon, value: "1850", label: "総合スコア" },
-  { IconComponent: WinRateIcon, value: "75%", label: "勝率" },
-  { IconComponent: StreakIcon, value: "12", label: "連続日数" },
-  { IconComponent: WordsIcon, value: "856", label: "学習単語数" },
-];
-
-const achievements = [
-  { emoji: "🏆", label: "初勝利", unlocked: true },
-  { emoji: "⚡", label: "スピードマスター", unlocked: true },
-  { emoji: "🔥", label: "連勝記録", unlocked: true },
-  { emoji: "📚", label: "単語コレクター", unlocked: true },
-  { emoji: "👥", label: "チームプレイヤー", unlocked: false },
-  { emoji: "💎", label: "パーフェクト", unlocked: false },
-];
-
-const recentGames = [
-  { date: "10/29", type: "チーム", points: "450pt", rank: "#1", icon: "🏆" },
-  { date: "10/28", type: "ソロ", points: "380pt", rank: "#2", icon: "🥈" },
-  { date: "10/27", type: "チーム", points: "520pt", rank: "#1", icon: "🏆" },
-];
+import { getProfile, getRecentGames, getUserAchievements } from "../lib/supabase-helpers";
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { user, session } = useAuth();
+  const [profile, setProfile] = useState<any>(null);
+  const [recentGames, setRecentGames] = useState<any[]>([]);
+  const [achievements, setAchievements] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    console.log('📊 [ProfileScreen] マウント');
-    console.log('👤 [ProfileScreen] ユーザー情報:', user ? {
-      id: user.id,
-      email: user.email,
-      username: user.user_metadata?.username,
-    } : '未ログイン');
-    console.log('🔐 [ProfileScreen] セッション:', session ? 'あり' : 'なし');
-  }, [user, session]);
+    const loadProfileData = async () => {
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        // プロフィール情報を取得
+        const profileData = await getProfile(user.id);
+        setProfile(profileData);
+
+        // 最近のゲームを取得
+        const games = await getRecentGames(user.id, 5);
+        setRecentGames(games.map(game => ({
+          date: new Date(game.completed_at).toLocaleDateString('ja-JP', { month: '2-digit', day: '2-digit' }),
+          type: game.mode,
+          points: `${game.score}pt`,
+          rank: game.accuracy >= 80 ? "#1" : game.accuracy >= 60 ? "#2" : "#3",
+          icon: game.accuracy >= 80 ? "🏆" : game.accuracy >= 60 ? "🥈" : "🥉",
+        })));
+
+        // 実績を取得
+        const userAchievements = await getUserAchievements(user.id);
+        setAchievements(userAchievements);
+      } catch (error) {
+        console.error('❌ プロフィールデータ取得エラー:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadProfileData();
+  }, [user]);
+
+  // レベルと経験値の計算
+  const currentLevel = profile?.level || 1;
+  const currentExp = profile?.experience || 0;
+  const expForCurrentLevel = (currentLevel - 1) * 500;
+  const expForNextLevel = currentLevel * 500;
+  const expNeeded = expForNextLevel - currentExp;
+  const expProgress = currentExp - expForCurrentLevel;
+  const expProgressPercent = ((expProgress / (expForNextLevel - expForCurrentLevel)) * 100) || 0;
+
+  // 統計情報
+  const profileStats = [
+    { 
+      IconComponent: TrophyIcon, 
+      value: (profile?.total_score || 0).toLocaleString(), 
+      label: "総合スコア" 
+    },
+    { 
+      IconComponent: WinRateIcon, 
+      value: `${(profile?.win_rate || 0).toFixed(1)}%`, 
+      label: "勝率" 
+    },
+    { 
+      IconComponent: StreakIcon, 
+      value: `${profile?.streak_days || 0}`, 
+      label: "連続日数" 
+    },
+    { 
+      IconComponent: WordsIcon, 
+      value: `${profile?.total_words_learned || 0}`, 
+      label: "学習単語数" 
+    },
+  ];
+
+  const displayName = profile?.display_name || profile?.username || user?.user_metadata?.username || user?.email || 'ユーザー';
+  const initial = displayName[0]?.toUpperCase() || 'U';
 
   return (
     <View style={styles.container}>
@@ -70,7 +114,7 @@ export default function ProfileScreen() {
 
           <View style={styles.profileHeader}>
             <Avatar
-              initial="T"
+              initial={initial}
               size={64}
               backgroundColor="#ffffff"
               textColor="#980ffa"
@@ -78,18 +122,18 @@ export default function ProfileScreen() {
               borderWidth={4}
             />
             <View style={styles.profileInfo}>
-              <Text style={styles.profileName}>Takeshi</Text>
-              <Text style={styles.profileLevel}>レベル 15</Text>
+              <Text style={styles.profileName}>{displayName}</Text>
+              <Text style={styles.profileLevel}>レベル {currentLevel}</Text>
             </View>
           </View>
 
           <Card style={styles.progressCard}>
             <View style={styles.progressHeader}>
               <Text style={styles.progressLabel}>次のレベルまで</Text>
-              <Text style={styles.progressValue}>350 XP</Text>
+              <Text style={styles.progressValue}>{expNeeded} XP</Text>
             </View>
-            <ProgressBar progress={87.5} height={6} />
-            <Text style={styles.progressDetails}>2450 / 2800 XP</Text>
+            <ProgressBar progress={expProgressPercent} height={6} />
+            <Text style={styles.progressDetails}>{currentExp} / {expForNextLevel} XP</Text>
           </Card>
         </LinearGradient>
 
@@ -114,49 +158,57 @@ export default function ProfileScreen() {
           <Card>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>実績</Text>
-              <Text style={styles.achievementCount}>4/6 解除</Text>
+              <Text style={styles.achievementCount}>
+                {achievements.length > 0 ? `${achievements.length}個 解除` : '実績なし'}
+              </Text>
             </View>
-            <View style={styles.achievementsGrid}>
-              {achievements.map((achievement, index) => (
-                <View
-                  key={index}
-                  style={[
-                    styles.achievementItem,
-                    achievement.unlocked
-                      ? styles.achievementUnlocked
-                      : styles.achievementLocked,
-                  ]}
-                >
-                  <Text style={styles.achievementEmoji}>
-                    {achievement.emoji}
-                  </Text>
-                  <Text style={styles.achievementLabel}>
-                    {achievement.label}
-                  </Text>
-                </View>
-              ))}
-            </View>
+            {achievements.length > 0 ? (
+              <View style={styles.achievementsGrid}>
+                {achievements.map((achievement: any, index: number) => (
+                  <View
+                    key={achievement.id || index}
+                    style={[
+                      styles.achievementItem,
+                      styles.achievementUnlocked,
+                    ]}
+                  >
+                    <Text style={styles.achievementEmoji}>
+                      {achievement.achievements?.icon || '🏆'}
+                    </Text>
+                    <Text style={styles.achievementLabel}>
+                      {achievement.achievements?.name || '実績'}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <Text style={styles.emptyText}>まだ実績がありません</Text>
+            )}
           </Card>
 
           <Card>
             <Text style={styles.sectionTitle}>最近のゲーム</Text>
-            <View style={styles.gamesList}>
-              {recentGames.map((game, index) => (
-                <View key={index} style={styles.gameItem}>
-                  <View style={styles.gameLeft}>
-                    <Text style={styles.gameIcon}>{game.icon}</Text>
-                    <View>
-                      <Text style={styles.gameDate}>{game.date}</Text>
-                      <Text style={styles.gameType}>{game.type}</Text>
+            {recentGames.length > 0 ? (
+              <View style={styles.gamesList}>
+                {recentGames.map((game, index) => (
+                  <View key={index} style={styles.gameItem}>
+                    <View style={styles.gameLeft}>
+                      <Text style={styles.gameIcon}>{game.icon}</Text>
+                      <View>
+                        <Text style={styles.gameDate}>{game.date}</Text>
+                        <Text style={styles.gameType}>{game.type}</Text>
+                      </View>
+                    </View>
+                    <View style={styles.gameRight}>
+                      <Text style={styles.gamePoints}>{game.points}</Text>
+                      <Text style={styles.gameRank}>{game.rank}</Text>
                     </View>
                   </View>
-                  <View style={styles.gameRight}>
-                    <Text style={styles.gamePoints}>{game.points}</Text>
-                    <Text style={styles.gameRank}>{game.rank}</Text>
-                  </View>
-                </View>
-              ))}
-            </View>
+                ))}
+              </View>
+            ) : (
+              <Text style={styles.emptyText}>まだゲーム履歴がありません</Text>
+            )}
           </Card>
 
           <Button
@@ -279,5 +331,11 @@ const styles = StyleSheet.create({
     borderColor: "#0000001a",
     borderWidth: 1,
     height: 38,
+  },
+  emptyText: {
+    fontSize: 14,
+    color: "#61738d",
+    textAlign: "center",
+    padding: 20,
   },
 });

@@ -1,17 +1,76 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import Button from "../components/Button";
 import Card from "../components/Card";
+import { useAuth } from "../contexts/AuthContext";
+import { getSessionPlayers } from "../lib/realtime-helpers";
+import { saveQuizAttempt } from "../lib/supabase-helpers";
 
 export default function ResultScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
+  const { user } = useAuth();
+  const [isSaving, setIsSaving] = useState(false);
+  
   const score = parseInt((params.score as string) || "0");
   const correctAnswers = parseInt((params.correctAnswers as string) || "0");
   const totalQuestions = parseInt((params.totalQuestions as string) || "3");
+  const sessionId = params.sessionId as string | undefined;
+  const mode = (params.mode as string) || "ソロ";
   const accuracy = Math.round((correctAnswers / totalQuestions) * 100);
+  
+  // クイズ結果を保存
+  useEffect(() => {
+    const saveResult = async () => {
+      if (!user || isSaving) return;
+      
+      try {
+        setIsSaving(true);
+        
+        // チーム戦の場合、勝敗を判定
+        let isWin = false;
+        let wordsLearned = correctAnswers; // 正解数 = 学習単語数
+        
+        if (mode === "チーム" && sessionId) {
+          try {
+            const players = await getSessionPlayers(sessionId);
+            if (players.length > 0) {
+              // スコア順にソート
+              const sortedPlayers = [...players].sort((a, b) => b.score - a.score);
+              // 1位なら勝利
+              const myRank = sortedPlayers.findIndex(p => p.id === user.id) + 1;
+              isWin = myRank === 1;
+            }
+          } catch (error) {
+            console.error('❌ プレイヤー取得エラー:', error);
+          }
+        } else {
+          // ソロモードの場合、正解率70%以上で勝利
+          isWin = accuracy >= 70;
+        }
+        
+        // クイズ結果を保存
+        await saveQuizAttempt({
+          user_id: user.id,
+          score: score,
+          correct_answers: correctAnswers,
+          total_questions: totalQuestions,
+          accuracy: accuracy,
+          mode: mode as "ソロ" | "チーム",
+        }, isWin, wordsLearned);
+        
+        console.log('✅ クイズ結果を保存しました:', { score, isWin, wordsLearned });
+      } catch (error) {
+        console.error('❌ クイズ結果保存エラー:', error);
+      } finally {
+        setIsSaving(false);
+      }
+    };
+    
+    saveResult();
+  }, [user, score, correctAnswers, totalQuestions, sessionId, mode, accuracy, isSaving]);
 
   return (
     <LinearGradient colors={["#f7b100", "#f44900"]} style={styles.container}>
