@@ -1,6 +1,6 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import Button from "../components/Button";
 import Card from "../components/Card";
@@ -12,7 +12,7 @@ export default function ResultScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const { user } = useAuth();
-  const [isSaving, setIsSaving] = useState(false);
+  const hasSavedRef = useRef(false); // 既に保存済みかどうかを追跡
   
   const score = parseInt((params.score as string) || "0");
   const correctAnswers = parseInt((params.correctAnswers as string) || "0");
@@ -21,13 +21,13 @@ export default function ResultScreen() {
   const mode = (params.mode as string) || "ソロ";
   const accuracy = Math.round((correctAnswers / totalQuestions) * 100);
   
-  // クイズ結果を保存
+  // クイズ結果を保存（1回だけ実行）
   useEffect(() => {
     const saveResult = async () => {
-      if (!user || isSaving) return;
+      if (!user || hasSavedRef.current) return;
       
       try {
-        setIsSaving(true);
+        hasSavedRef.current = true; // 保存開始をマーク
         
         // チーム戦の場合、勝敗を判定
         let isWin = false;
@@ -64,13 +64,12 @@ export default function ResultScreen() {
         console.log('✅ クイズ結果を保存しました:', { score, isWin, wordsLearned });
       } catch (error) {
         console.error('❌ クイズ結果保存エラー:', error);
-      } finally {
-        setIsSaving(false);
+        hasSavedRef.current = false; // エラー時はリセット（リトライ可能にする）
       }
     };
     
     saveResult();
-  }, [user, score, correctAnswers, totalQuestions, sessionId, mode, accuracy, isSaving]);
+  }, [user, score, correctAnswers, totalQuestions, sessionId, mode, accuracy]);
 
   return (
     <LinearGradient colors={["#f7b100", "#f44900"]} style={styles.container}>
