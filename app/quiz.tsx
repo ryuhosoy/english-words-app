@@ -2,7 +2,7 @@ import type { RealtimeChannel } from "@supabase/supabase-js";
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import FirstRankIcon from "../assets/images/container-17.svg";
 import Avatar from "../components/Avatar";
 import Card from "../components/Card";
@@ -15,6 +15,7 @@ import {
   subscribeToSessionUpdates,
   updateQuizScore,
 } from "../lib/realtime-helpers";
+import { getQuizWords } from "../lib/supabase-helpers";
 
 const quizPlayers = [
   {
@@ -43,32 +44,13 @@ const quizPlayers = [
   },
 ];
 
-const quizData = [
-  {
-    word: "Brilliant",
-    example: '"She had a brilliant idea!"',
-    answers: ["素晴らしい", "暗い", "大きい", "小さい"],
-    correctIndex: 0,
-  },
-  {
-    word: "Ancient",
-    example: '"The ancient temple was beautiful."',
-    answers: ["新しい", "古代の", "現代の", "未来の"],
-    correctIndex: 1,
-  },
-  {
-    word: "Swift",
-    example: '"The swift runner won the race."',
-    answers: ["遅い", "速い", "弱い", "強い"],
-    correctIndex: 1,
-  },
-  {
-    word: "Courageous",
-    example: '"The courageous hero saved the day."',
-    answers: ["臆病な", "勇敢な", "賢い", "愚かな"],
-    correctIndex: 1,
-  },
-];
+interface QuizQuestion {
+  word: string;
+  example: string;
+  answers: string[];
+  correctIndex: number;
+  wordId: string;
+}
 
 export default function QuizScreen() {
   const router = useRouter();
@@ -79,6 +61,9 @@ export default function QuizScreen() {
   const [timeLeft, setTimeLeft] = useState(15);
   const [correctAnswers, setCorrectAnswers] = useState(0);
   const [isQuizComplete, setIsQuizComplete] = useState(false);
+  const [quizData, setQuizData] = useState<QuizQuestion[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   
   // リアルタイム用の状態
   const [sessionId, setSessionId] = useState<string | null>(params.sessionId as string || null);
@@ -86,6 +71,9 @@ export default function QuizScreen() {
   const [realtimePlayers, setRealtimePlayers] = useState<QuizPlayer[]>([]);
   const [useRealtime, setUseRealtime] = useState(false);
   const channelRef = useRef<RealtimeChannel | null>(null);
+  
+  // 難易度を取得（パラメータから、またはデフォルトで中級）
+  const difficulty = (params.difficulty as string) || '中級';
 
   const handleRealtimePlayersUpdate = useCallback((players: QuizPlayer[]) => {
     const normalized = players.map((p) => ({
@@ -121,7 +109,7 @@ export default function QuizScreen() {
         user!.id,
         user!.user_metadata?.username || user!.email || 'あなた'
       );
-
+      
       console.log('joinQuizSession成功 in initializeRealtimeWithExistingSession');
       
       setupRealtimeSubscription(existingSessionId);
@@ -151,6 +139,65 @@ export default function QuizScreen() {
       setUseRealtime(false);
     }
   }, [setupRealtimeSubscription, user]);
+
+  // クイズデータをデータベースから取得
+  const loadQuizData = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      // クイズ用に10問取得
+      const { quizWords, allWords } = await getQuizWords(10, difficulty);
+      
+      if (!quizWords || quizWords.length === 0) {
+        throw new Error('単語データが見つかりませんでした');
+      }
+      
+      // 全ての単語の意味を取得（選択肢生成用）
+      const allMeanings = allWords.map(w => w.meaning_japanese);
+      
+      // クイズ問題を生成
+      const questions: QuizQuestion[] = quizWords.map((word) => {
+        // 正解の意味
+        const correctAnswer = word.meaning_japanese;
+        
+        // 他の単語から3つの誤答候補を取得（重複を避ける）
+        const wrongAnswers = allMeanings
+          .filter(m => m !== correctAnswer)
+          .sort(() => Math.random() - 0.5)
+          .slice(0, 3);
+        
+        // 選択肢が4つ未満の場合は、正解を複数回追加（フォールバック）
+        while (wrongAnswers.length < 3) {
+          wrongAnswers.push(correctAnswer);
+        }
+        
+        // 選択肢をシャッフル（正解 + 誤答3つ）
+        const allAnswers = [correctAnswer, ...wrongAnswers].sort(() => Math.random() - 0.5);
+        const correctIndex = allAnswers.indexOf(correctAnswer);
+        
+        return {
+          word: word.word,
+          example: word.example_sentence || `"${word.word}"`,
+          answers: allAnswers,
+          correctIndex,
+          wordId: word.id,
+        };
+      });
+      
+      setQuizData(questions);
+      setIsLoading(false);
+    } catch (err) {
+      console.error('❌ [Quiz] データ取得エラー:', err);
+      setError(err instanceof Error ? err.message : 'データの取得に失敗しました');
+      setIsLoading(false);
+    }
+  }, [difficulty]);
+  
+  // 初回マウント時にクイズデータを読み込む
+  useEffect(() => {
+    loadQuizData();
+  }, [loadQuizData]);
 
   // リアルタイムセッションの初期化
   useEffect(() => {
@@ -185,7 +232,7 @@ export default function QuizScreen() {
   }, [timeLeft, isQuizComplete]);
 
   useEffect(() => {
-    if (isQuizComplete) {
+    if (isQuizComplete && quizData.length > 0) {
       router.push({
         pathname: "/result",
         params: { 
@@ -197,9 +244,11 @@ export default function QuizScreen() {
         },
       });
     }
-  }, [isQuizComplete, score, correctAnswers, sessionId, teamId]);
+  }, [isQuizComplete, score, correctAnswers, sessionId, teamId, quizData.length]);
 
   const handleAnswer = async (selectedIndex: number) => {
+    if (quizData.length === 0 || currentQuestion >= quizData.length) return;
+    
     const isCorrect = selectedIndex === quizData[currentQuestion].correctIndex;
     if (isCorrect) {
       const newScore = score + 100;
@@ -228,7 +277,7 @@ export default function QuizScreen() {
     }
   };
 
-  const progress = ((currentQuestion + 1) / quizData.length) * 100;
+  const progress = quizData.length > 0 ? ((currentQuestion + 1) / quizData.length) * 100 : 0;
   const fallbackPlayers: QuizPlayer[] = quizPlayers.map((player, index) => ({
     id: `fallback_${index}`,
     name: player.name,
@@ -240,6 +289,35 @@ export default function QuizScreen() {
   const rankingPlayers = (
     useRealtime && realtimePlayers.length > 0 ? realtimePlayers : fallbackPlayers
   ).slice(0, 3);
+
+  // ローディング状態
+  if (isLoading) {
+    return (
+      <LinearGradient colors={["#ad46ff", "#4f39f6"]} style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#ffffff" />
+          <Text style={styles.loadingText}>クイズを準備しています...</Text>
+        </View>
+      </LinearGradient>
+    );
+  }
+
+  // エラー状態
+  if (error || quizData.length === 0) {
+    return (
+      <LinearGradient colors={["#ad46ff", "#4f39f6"]} style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <Text style={styles.errorText}>❌ {error || 'クイズデータの読み込みに失敗しました'}</Text>
+          <TouchableOpacity 
+            style={styles.retryButton}
+            onPress={loadQuizData}
+          >
+            <Text style={styles.retryButtonText}>再試行</Text>
+          </TouchableOpacity>
+        </View>
+      </LinearGradient>
+    );
+  }
 
   return (
     <LinearGradient colors={["#ad46ff", "#4f39f6"]} style={styles.container}>
@@ -415,4 +493,32 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   answerText: { fontSize: 16, color: "#0e162b", letterSpacing: -0.31 },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 20,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: "#ffffff",
+    marginTop: 10,
+  },
+  errorText: {
+    fontSize: 16,
+    color: "#ffffff",
+    textAlign: "center",
+    marginBottom: 20,
+  },
+  retryButton: {
+    backgroundColor: "#ffffff",
+    borderRadius: 12,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+  },
+  retryButtonText: {
+    fontSize: 16,
+    color: "#4f39f6",
+    fontWeight: "600",
+  },
 });

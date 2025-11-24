@@ -163,24 +163,24 @@ export default function ProfileScreen() {
               </Text>
             </View>
             {achievements.length > 0 ? (
-              <View style={styles.achievementsGrid}>
+            <View style={styles.achievementsGrid}>
                 {achievements.map((achievement: any, index: number) => (
-                  <View
+                <View
                     key={achievement.id || index}
-                    style={[
-                      styles.achievementItem,
+                  style={[
+                    styles.achievementItem,
                       styles.achievementUnlocked,
-                    ]}
-                  >
-                    <Text style={styles.achievementEmoji}>
+                  ]}
+                >
+                  <Text style={styles.achievementEmoji}>
                       {achievement.achievements?.icon || '🏆'}
-                    </Text>
-                    <Text style={styles.achievementLabel}>
+                  </Text>
+                  <Text style={styles.achievementLabel}>
                       {achievement.achievements?.name || '実績'}
-                    </Text>
-                  </View>
-                ))}
-              </View>
+                  </Text>
+                </View>
+              ))}
+            </View>
             ) : (
               <Text style={styles.emptyText}>まだ実績がありません</Text>
             )}
@@ -189,23 +189,23 @@ export default function ProfileScreen() {
           <Card>
             <Text style={styles.sectionTitle}>最近のゲーム</Text>
             {recentGames.length > 0 ? (
-              <View style={styles.gamesList}>
-                {recentGames.map((game, index) => (
-                  <View key={index} style={styles.gameItem}>
-                    <View style={styles.gameLeft}>
-                      <Text style={styles.gameIcon}>{game.icon}</Text>
-                      <View>
-                        <Text style={styles.gameDate}>{game.date}</Text>
-                        <Text style={styles.gameType}>{game.type}</Text>
-                      </View>
-                    </View>
-                    <View style={styles.gameRight}>
-                      <Text style={styles.gamePoints}>{game.points}</Text>
-                      <Text style={styles.gameRank}>{game.rank}</Text>
+            <View style={styles.gamesList}>
+              {recentGames.map((game, index) => (
+                <View key={index} style={styles.gameItem}>
+                  <View style={styles.gameLeft}>
+                    <Text style={styles.gameIcon}>{game.icon}</Text>
+                    <View>
+                      <Text style={styles.gameDate}>{game.date}</Text>
+                      <Text style={styles.gameType}>{game.type}</Text>
                     </View>
                   </View>
-                ))}
-              </View>
+                  <View style={styles.gameRight}>
+                    <Text style={styles.gamePoints}>{game.points}</Text>
+                    <Text style={styles.gameRank}>{game.rank}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
             ) : (
               <Text style={styles.emptyText}>まだゲーム履歴がありません</Text>
             )}
