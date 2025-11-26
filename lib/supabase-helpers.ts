@@ -216,6 +216,51 @@ export async function getRandomWords(count: number = 10, difficulty?: string) {
   return shuffled.slice(0, count);
 }
 
+// セッションからクイズ問題を取得
+export async function getSessionQuestions(sessionId: string) {
+  const { data, error } = await supabase
+    .from('quiz_sessions')
+    .select('questions, difficulty_level')
+    .eq('id', sessionId)
+    .single();
+
+  if (error) throw error;
+  
+  // 問題がない場合は、手動で生成を試みる
+  if (!data?.questions || (Array.isArray(data.questions) && data.questions.length === 0)) {
+    console.log('⚠️ セッションに問題がないため、手動で生成します...');
+    
+    // SupabaseのRPC関数を呼び出して問題を生成
+    // sessionIdは既にUUID型なので、そのまま渡す
+    const { error: rpcError } = await supabase.rpc('update_session_questions', {
+      p_session_id: sessionId as any, // UUID型として渡す
+      p_difficulty: data?.difficulty_level || null,
+    });
+    
+    if (rpcError) {
+      console.error('❌ 問題生成エラー:', rpcError);
+      throw new Error('問題の生成に失敗しました: ' + rpcError.message);
+    }
+    
+    // 再度取得
+    const { data: retryData, error: retryError } = await supabase
+      .from('quiz_sessions')
+      .select('questions')
+      .eq('id', sessionId)
+      .single();
+    
+    if (retryError) throw retryError;
+    
+    if (!retryData?.questions || (Array.isArray(retryData.questions) && retryData.questions.length === 0)) {
+      throw new Error('問題の生成に失敗しました。データベースに単語データがあるか確認してください。');
+    }
+    
+    return retryData.questions as any[];
+  }
+  
+  return data.questions as any[];
+}
+
 // チーム一覧取得
 export async function getAvailableTeams() {
   const { data, error } = await supabase

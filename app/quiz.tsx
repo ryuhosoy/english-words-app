@@ -15,7 +15,7 @@ import {
   subscribeToSessionUpdates,
   updateQuizScore,
 } from "../lib/realtime-helpers";
-import { getQuizWords } from "../lib/supabase-helpers";
+import { getSessionQuestions } from "../lib/supabase-helpers";
 
 const quizPlayers = [
   {
@@ -49,7 +49,7 @@ interface QuizQuestion {
   example: string;
   answers: string[];
   correctIndex: number;
-  wordId: string;
+  wordId?: string;
 }
 
 export default function QuizScreen() {
@@ -62,7 +62,7 @@ export default function QuizScreen() {
   const [correctAnswers, setCorrectAnswers] = useState(0);
   const [isQuizComplete, setIsQuizComplete] = useState(false);
   const [quizData, setQuizData] = useState<QuizQuestion[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingQuestions, setIsLoadingQuestions] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
   // リアルタイム用の状態
@@ -71,9 +71,6 @@ export default function QuizScreen() {
   const [realtimePlayers, setRealtimePlayers] = useState<QuizPlayer[]>([]);
   const [useRealtime, setUseRealtime] = useState(false);
   const channelRef = useRef<RealtimeChannel | null>(null);
-  
-  // 難易度を取得（パラメータから、またはデフォルトで中級）
-  const difficulty = (params.difficulty as string) || '中級';
 
   const handleRealtimePlayersUpdate = useCallback((players: QuizPlayer[]) => {
     const normalized = players.map((p) => ({
@@ -99,6 +96,29 @@ export default function QuizScreen() {
     setUseRealtime(true);
   }, [handleRealtimePlayersUpdate]);
 
+  // セッションから問題を取得
+  const loadQuestionsFromSession = useCallback(async (targetSessionId: string) => {
+    try {
+      setIsLoadingQuestions(true);
+      setError(null);
+      
+      console.log('📝 [Quiz] セッションから問題を取得中:', targetSessionId);
+      const questions = await getSessionQuestions(targetSessionId);
+      
+      if (!questions || questions.length === 0) {
+        throw new Error('問題が見つかりませんでした');
+      }
+      
+      setQuizData(questions);
+      setIsLoadingQuestions(false);
+      console.log('✅ [Quiz] 問題取得完了:', questions.length, '問');
+    } catch (err) {
+      console.error('❌ [Quiz] 問題取得エラー:', err);
+      setError(err instanceof Error ? err.message : '問題の取得に失敗しました');
+      setIsLoadingQuestions(false);
+    }
+  }, []);
+
   const initializeRealtimeWithExistingSession = useCallback(async (existingSessionId: string) => {
     try {
       console.log('🎮 [Quiz] 既存セッションで初期化:', existingSessionId);
@@ -114,11 +134,16 @@ export default function QuizScreen() {
       
       setupRealtimeSubscription(existingSessionId);
       console.log('✅ [Quiz] リアルタイム機能有効化（マッチングモード）');
+      
+      // セッションから問題を取得
+      await loadQuestionsFromSession(existingSessionId);
     } catch (error) {
       console.error('❌ [Quiz] リアルタイム初期化エラー:', error);
       setUseRealtime(false);
+      setError('セッションの初期化に失敗しました');
+      setIsLoadingQuestions(false);
     }
-  }, [setupRealtimeSubscription, user]);
+  }, [setupRealtimeSubscription, user, loadQuestionsFromSession]);
 
   const initializeRealtimeSession = useCallback(async () => {
     try {
@@ -134,70 +159,16 @@ export default function QuizScreen() {
       );
       
       setupRealtimeSubscription(session.id);
+      
+      // セッションから問題を取得（トリガーで自動生成されているはず）
+      await loadQuestionsFromSession(session.id);
     } catch (error) {
       console.error('❌ [Quiz] リアルタイム初期化エラー:', error);
       setUseRealtime(false);
+      setError('セッションの初期化に失敗しました');
+      setIsLoadingQuestions(false);
     }
-  }, [setupRealtimeSubscription, user]);
-
-  // クイズデータをデータベースから取得
-  const loadQuizData = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      
-      // クイズ用に10問取得
-      const { quizWords, allWords } = await getQuizWords(10, difficulty);
-      
-      if (!quizWords || quizWords.length === 0) {
-        throw new Error('単語データが見つかりませんでした');
-      }
-      
-      // 全ての単語の意味を取得（選択肢生成用）
-      const allMeanings = allWords.map(w => w.meaning_japanese);
-      
-      // クイズ問題を生成
-      const questions: QuizQuestion[] = quizWords.map((word) => {
-        // 正解の意味
-        const correctAnswer = word.meaning_japanese;
-        
-        // 他の単語から3つの誤答候補を取得（重複を避ける）
-        const wrongAnswers = allMeanings
-          .filter(m => m !== correctAnswer)
-          .sort(() => Math.random() - 0.5)
-          .slice(0, 3);
-        
-        // 選択肢が4つ未満の場合は、正解を複数回追加（フォールバック）
-        while (wrongAnswers.length < 3) {
-          wrongAnswers.push(correctAnswer);
-        }
-        
-        // 選択肢をシャッフル（正解 + 誤答3つ）
-        const allAnswers = [correctAnswer, ...wrongAnswers].sort(() => Math.random() - 0.5);
-        const correctIndex = allAnswers.indexOf(correctAnswer);
-        
-        return {
-          word: word.word,
-          example: word.example_sentence || `"${word.word}"`,
-          answers: allAnswers,
-          correctIndex,
-          wordId: word.id,
-        };
-      });
-      
-      setQuizData(questions);
-      setIsLoading(false);
-    } catch (err) {
-      console.error('❌ [Quiz] データ取得エラー:', err);
-      setError(err instanceof Error ? err.message : 'データの取得に失敗しました');
-      setIsLoading(false);
-    }
-  }, [difficulty]);
-  
-  // 初回マウント時にクイズデータを読み込む
-  useEffect(() => {
-    loadQuizData();
-  }, [loadQuizData]);
+  }, [setupRealtimeSubscription, user, loadQuestionsFromSession]);
 
   // リアルタイムセッションの初期化
   useEffect(() => {
@@ -291,12 +262,12 @@ export default function QuizScreen() {
   ).slice(0, 3);
 
   // ローディング状態
-  if (isLoading) {
+  if (isLoadingQuestions) {
     return (
       <LinearGradient colors={["#ad46ff", "#4f39f6"]} style={styles.container}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#ffffff" />
-          <Text style={styles.loadingText}>クイズを準備しています...</Text>
+          <Text style={styles.loadingText}>📚 クイズを準備しています...</Text>
         </View>
       </LinearGradient>
     );
@@ -308,12 +279,6 @@ export default function QuizScreen() {
       <LinearGradient colors={["#ad46ff", "#4f39f6"]} style={styles.container}>
         <View style={styles.loadingContainer}>
           <Text style={styles.errorText}>❌ {error || 'クイズデータの読み込みに失敗しました'}</Text>
-          <TouchableOpacity 
-            style={styles.retryButton}
-            onPress={loadQuizData}
-          >
-            <Text style={styles.retryButtonText}>再試行</Text>
-          </TouchableOpacity>
         </View>
       </LinearGradient>
     );
@@ -500,25 +465,14 @@ const styles = StyleSheet.create({
     gap: 20,
   },
   loadingText: {
-    fontSize: 16,
+    fontSize: 18,
     color: "#ffffff",
+    fontWeight: "600",
     marginTop: 10,
   },
   errorText: {
     fontSize: 16,
     color: "#ffffff",
     textAlign: "center",
-    marginBottom: 20,
-  },
-  retryButton: {
-    backgroundColor: "#ffffff",
-    borderRadius: 12,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-  },
-  retryButtonText: {
-    fontSize: 16,
-    color: "#4f39f6",
-    fontWeight: "600",
   },
 });
