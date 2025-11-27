@@ -60,7 +60,9 @@ export default function QuizScreen() {
   const [score, setScore] = useState(0);
   const [timeLeft, setTimeLeft] = useState(15);
   const [correctAnswers, setCorrectAnswers] = useState(0);
+  const [consecutiveCorrect, setConsecutiveCorrect] = useState(0); // 連続正解数
   const [isQuizComplete, setIsQuizComplete] = useState(false);
+  const [hasSomeoneCompleted, setHasSomeoneCompleted] = useState(false); // 誰かが全問正解したか
   const [quizData, setQuizData] = useState<QuizQuestion[]>([]);
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -83,7 +85,17 @@ export default function QuizScreen() {
     if (yourself) {
       setScore(yourself.score);
     }
-  }, [user?.id]);
+
+    // チームモードの場合、誰かが全問正解したかチェック
+    if (teamId && quizData.length > 0) {
+      const maxScore = quizData.length * 100; // 全問正解のスコア
+      const someoneCompleted = normalized.some(p => p.score >= maxScore);
+      if (someoneCompleted) {
+        setHasSomeoneCompleted(true);
+        setIsQuizComplete(true);
+      }
+    }
+  }, [user?.id, teamId, quizData.length]);
 
   const setupRealtimeSubscription = useCallback((targetSessionId: string) => {
     if (channelRef.current) {
@@ -204,27 +216,39 @@ export default function QuizScreen() {
 
   useEffect(() => {
     if (isQuizComplete && quizData.length > 0) {
-      router.push({
-        pathname: "/result",
-        params: { 
-          score, 
-          correctAnswers, 
-          totalQuestions: quizData.length,
-          sessionId: sessionId || '',
-          mode: teamId ? 'チーム' : 'ソロ',
-        },
-      });
+      // 少し遅延させてから結果画面へ（アニメーションのため）
+      const timer = setTimeout(() => {
+        router.push({
+          pathname: "/result",
+          params: { 
+            score, 
+            correctAnswers: consecutiveCorrect, // 連続正解数を送る
+            totalQuestions: quizData.length,
+            sessionId: sessionId || '',
+            mode: teamId ? 'チーム' : 'ソロ',
+            hasSomeoneCompleted: hasSomeoneCompleted ? 'true' : 'false',
+          },
+        });
+      }, 500);
+      
+      return () => clearTimeout(timer);
     }
-  }, [isQuizComplete, score, correctAnswers, sessionId, teamId, quizData.length]);
+  }, [isQuizComplete, score, consecutiveCorrect, sessionId, teamId, quizData.length, hasSomeoneCompleted]);
 
   const handleAnswer = async (selectedIndex: number) => {
-    if (quizData.length === 0 || currentQuestion >= quizData.length) return;
+    if (quizData.length === 0 || currentQuestion >= quizData.length || isQuizComplete) return;
     
     const isCorrect = selectedIndex === quizData[currentQuestion].correctIndex;
+    
     if (isCorrect) {
+      // 正解の場合
+      const newConsecutive = consecutiveCorrect + 1;
       const newScore = score + 100;
+      const newCorrectAnswers = correctAnswers + 1;
+      
+      setConsecutiveCorrect(newConsecutive);
       setScore(newScore);
-      setCorrectAnswers(correctAnswers + 1);
+      setCorrectAnswers(newCorrectAnswers);
       
       // リアルタイム機能が有効な場合、Supabaseに送信
       if (useRealtime && sessionId && user) {
@@ -235,16 +259,41 @@ export default function QuizScreen() {
           console.error('❌ [Quiz] スコア送信エラー:', error);
         }
       }
+      
+      // 全問正解したかチェック
+      if (newConsecutive >= quizData.length) {
+        console.log('🎉 全問正解！');
+        setIsQuizComplete(true);
+        return;
+      }
+      
+      // 次の問題へ
+      handleNextQuestion();
+    } else {
+      // 間違えた場合：最初からやり直し + スコアリセット
+      console.log('❌ 間違い！最初からやり直し（スコアリセット）');
+      setConsecutiveCorrect(0);
+      setScore(0);
+      setCorrectAnswers(0);
+      setCurrentQuestion(0);
+      setTimeLeft(15);
+      
+      // リアルタイム機能が有効な場合、スコアを0に更新
+      if (useRealtime && sessionId && user) {
+        try {
+          await updateQuizScore(sessionId, user.id, 0);
+          console.log('📤 [Quiz] スコアリセット送信: 0');
+        } catch (error) {
+          console.error('❌ [Quiz] スコアリセット送信エラー:', error);
+        }
+      }
     }
-    handleNextQuestion();
   };
 
   const handleNextQuestion = () => {
-    if (currentQuestion < quizData.length - 1) {
+    if (currentQuestion < quizData.length - 1 && !isQuizComplete) {
       setCurrentQuestion(currentQuestion + 1);
       setTimeLeft(15);
-    } else {
-      setIsQuizComplete(true);
     }
   };
 
@@ -292,7 +341,7 @@ export default function QuizScreen() {
         </View>
         <View style={styles.progressRow}>
           <Text style={styles.questionText}>
-            問題 {currentQuestion + 1}/{quizData.length}
+            問題 {currentQuestion + 1}/{quizData.length} (連続正解: {consecutiveCorrect}/{quizData.length})
           </Text>
           <Text style={styles.timeText}>⏰ {timeLeft}秒</Text>
         </View>

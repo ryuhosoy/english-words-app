@@ -1,11 +1,13 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useRef } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
+import FirstRankIcon from "../assets/images/container-17.svg";
+import Avatar from "../components/Avatar";
 import Button from "../components/Button";
 import Card from "../components/Card";
 import { useAuth } from "../contexts/AuthContext";
-import { getSessionPlayers } from "../lib/realtime-helpers";
+import { getSessionPlayers, QuizPlayer } from "../lib/realtime-helpers";
 import { saveQuizAttempt } from "../lib/supabase-helpers";
 
 export default function ResultScreen() {
@@ -13,14 +15,41 @@ export default function ResultScreen() {
   const params = useLocalSearchParams();
   const { user } = useAuth();
   const hasSavedRef = useRef(false); // 既に保存済みかどうかを追跡
+  const [rankingPlayers, setRankingPlayers] = useState<QuizPlayer[]>([]);
+  const [isLoadingRanking, setIsLoadingRanking] = useState(false);
   
   const score = parseInt((params.score as string) || "0");
   const correctAnswers = parseInt((params.correctAnswers as string) || "0");
   const totalQuestions = parseInt((params.totalQuestions as string) || "3");
   const sessionId = params.sessionId as string | undefined;
   const mode = (params.mode as string) || "ソロ";
+  const hasSomeoneCompleted = params.hasSomeoneCompleted === 'true';
   const accuracy = Math.round((correctAnswers / totalQuestions) * 100);
   
+  // ランキングを取得（チームモードの場合）
+  useEffect(() => {
+    const loadRanking = async () => {
+      if (mode === "チーム" && sessionId) {
+        setIsLoadingRanking(true);
+        try {
+          const players = await getSessionPlayers(sessionId);
+          // 自分をマーク
+          const playersWithYou = players.map(p => ({
+            ...p,
+            isYou: p.id === user?.id,
+          }));
+          setRankingPlayers(playersWithYou);
+        } catch (error) {
+          console.error('❌ ランキング取得エラー:', error);
+        } finally {
+          setIsLoadingRanking(false);
+        }
+      }
+    };
+    
+    loadRanking();
+  }, [mode, sessionId, user?.id]);
+
   // クイズ結果を保存（1回だけ実行）
   useEffect(() => {
     const saveResult = async () => {
@@ -33,7 +62,13 @@ export default function ResultScreen() {
         let isWin = false;
         let wordsLearned = correctAnswers; // 正解数 = 学習単語数
         
-        if (mode === "チーム" && sessionId) {
+        if (mode === "チーム" && rankingPlayers.length > 0) {
+          // スコア順にソート
+          const sortedPlayers = [...rankingPlayers].sort((a, b) => b.score - a.score);
+          // 1位なら勝利
+          const myRank = sortedPlayers.findIndex(p => p.id === user.id) + 1;
+          isWin = myRank === 1;
+        } else if (mode === "チーム" && sessionId) {
           try {
             const players = await getSessionPlayers(sessionId);
             if (players.length > 0) {
@@ -47,8 +82,8 @@ export default function ResultScreen() {
             console.error('❌ プレイヤー取得エラー:', error);
           }
         } else {
-          // ソロモードの場合、正解率70%以上で勝利
-          isWin = accuracy >= 70;
+          // ソロモードの場合、全問正解で勝利
+          isWin = correctAnswers === totalQuestions;
         }
         
         // クイズ結果を保存
@@ -69,15 +104,31 @@ export default function ResultScreen() {
     };
     
     saveResult();
-  }, [user, score, correctAnswers, totalQuestions, sessionId, mode, accuracy]);
+  }, [user, score, correctAnswers, totalQuestions, sessionId, mode, accuracy, rankingPlayers]);
 
   return (
     <LinearGradient colors={["#f7b100", "#f44900"]} style={styles.container}>
-      <View style={styles.content}>
+      <ScrollView 
+        style={styles.scrollView}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.celebration}>
-          <Text style={styles.celebrationIcon}>🎉</Text>
-          <Text style={styles.title}>クイズ完了!</Text>
-          <Text style={styles.subtitle}>お疲れ様でした!</Text>
+          <Text style={styles.celebrationIcon}>
+            {hasSomeoneCompleted && mode === "チーム" ? "🏆" : "🎉"}
+          </Text>
+          <Text style={styles.title}>
+            {hasSomeoneCompleted && mode === "チーム" 
+              ? "クイズ終了!" 
+              : correctAnswers === totalQuestions 
+                ? "全問正解!" 
+                : "クイズ完了!"}
+          </Text>
+          <Text style={styles.subtitle}>
+            {hasSomeoneCompleted && mode === "チーム" 
+              ? "誰かが全問正解しました!" 
+              : "お疲れ様でした!"}
+          </Text>
         </View>
 
         <Card style={styles.resultCard}>
@@ -110,6 +161,66 @@ export default function ResultScreen() {
           </View>
         </Card>
 
+        {/* ランキング表示（チームモードの場合） */}
+        {mode === "チーム" && rankingPlayers.length > 0 && (
+          <Card style={styles.rankingCard}>
+            <Text style={styles.rankingTitle}>🏆 最終ランキング</Text>
+            <ScrollView style={styles.rankingList} showsVerticalScrollIndicator={false}>
+              {rankingPlayers.map((player, index) => {
+                const RankIcon = index === 0 ? FirstRankIcon : null;
+                const displayRank = player.rank || (index + 1);
+                const isYou = player.id === user?.id;
+                
+                return (
+                  <View
+                    key={player.id || index}
+                    style={[
+                      styles.rankingItem,
+                      isYou && styles.rankingItemHighlight,
+                    ]}
+                  >
+                    <View style={styles.rankingLeft}>
+                      {RankIcon ? (
+                        <View style={styles.rankIconWrapper}>
+                          <RankIcon width={20} height={20} />
+                        </View>
+                      ) : (
+                        <Text style={[styles.rankingNumber, isYou && styles.rankingNumberHighlight]}>
+                          {displayRank}
+                        </Text>
+                      )}
+                      <Avatar
+                        initial={player.avatar || player.name?.[0] || 'P'}
+                        size={32}
+                        backgroundColor={isYou ? "#f0b100" : "#ad46ff"}
+                        borderColor={isYou ? "#fdc700" : "#ffffff33"}
+                        borderWidth={2}
+                      />
+                      <Text
+                        style={[
+                          styles.rankingName,
+                          isYou && styles.rankingNameHighlight,
+                        ]}
+                      >
+                        {player.name}
+                        {isYou && " (あなた)"}
+                      </Text>
+                    </View>
+                    <Text
+                      style={[
+                        styles.rankingScore,
+                        isYou && styles.rankingScoreHighlight,
+                      ]}
+                    >
+                      {player.score ?? 0}pt
+                    </Text>
+                  </View>
+                );
+              })}
+            </ScrollView>
+          </Card>
+        )}
+
         <View style={styles.buttonsContainer}>
           <Button
             title="🔄 もう一度プレイ"
@@ -129,14 +240,15 @@ export default function ResultScreen() {
         <Text style={styles.footerText}>
           スコアをシェアして友達に自慢しよう!
         </Text>
-      </View>
+      </ScrollView>
     </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { flex: 1, paddingTop: 80, paddingHorizontal: 20, gap: 20 },
+  scrollView: { flex: 1 },
+  content: { paddingTop: 80, paddingBottom: 40, paddingHorizontal: 20, gap: 20 },
   celebration: { alignItems: "center", gap: 12 },
   celebrationIcon: { fontSize: 120 },
   title: {
@@ -226,5 +338,76 @@ const styles = StyleSheet.create({
     color: "#ffffffcc",
     textAlign: "center",
     letterSpacing: -0.15,
+  },
+  rankingCard: {
+    maxHeight: 300,
+    gap: 16,
+  },
+  rankingTitle: {
+    fontSize: 18,
+    color: "#0e162b",
+    fontWeight: "600",
+    textAlign: "center",
+    marginBottom: 8,
+  },
+  rankingList: {
+    maxHeight: 240,
+  },
+  rankingItem: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: "#f8f9fa",
+    borderRadius: 12,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+  },
+  rankingItemHighlight: {
+    backgroundColor: "#fef9c1",
+    borderColor: "#fdc700",
+    borderWidth: 2,
+  },
+  rankingLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    flex: 1,
+  },
+  rankIconWrapper: {
+    width: 20,
+    height: 20,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  rankingNumber: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#45556c",
+    width: 24,
+    textAlign: "center",
+  },
+  rankingNumberHighlight: {
+    color: "#f44900",
+  },
+  rankingName: {
+    fontSize: 16,
+    color: "#0e162b",
+    fontWeight: "500",
+    flex: 1,
+  },
+  rankingNameHighlight: {
+    color: "#f44900",
+    fontWeight: "600",
+  },
+  rankingScore: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#155cfb",
+  },
+  rankingScoreHighlight: {
+    color: "#f44900",
   },
 });
