@@ -15,30 +15,45 @@ export default function ResultScreen() {
   const params = useLocalSearchParams();
   const { user } = useAuth();
   const hasSavedRef = useRef(false); // 既に保存済みかどうかを追跡
+  const hasLoadedLatestScore = useRef(false); // 最新スコアを既に取得したか
   const [rankingPlayers, setRankingPlayers] = useState<QuizPlayer[]>([]);
   const [isLoadingRanking, setIsLoadingRanking] = useState(false);
   
-  const score = parseInt((params.score as string) || "0");
-  const correctAnswers = parseInt((params.correctAnswers as string) || "0");
+  const initialScore = parseInt((params.score as string) || "0");
+  const [score, setScore] = useState(initialScore);
+  const rawCorrectAnswers = parseInt((params.correctAnswers as string) || "0");
   const totalQuestions = parseInt((params.totalQuestions as string) || "3");
+  // 正解数が問題数を超えないように制限
+  const correctAnswers = Math.min(rawCorrectAnswers, totalQuestions);
   const sessionId = params.sessionId as string | undefined;
   const mode = (params.mode as string) || "ソロ";
   const hasSomeoneCompleted = params.hasSomeoneCompleted === 'true';
   const accuracy = Math.round((correctAnswers / totalQuestions) * 100);
   
-  // ランキングを取得（チームモードの場合）
+  // ランキングを取得し、最新スコアを取得（sessionIdがある場合）
   useEffect(() => {
     const loadRanking = async () => {
-      if (mode === "チーム" && sessionId) {
+      if (sessionId && user && !hasLoadedLatestScore.current) {
         setIsLoadingRanking(true);
         try {
+          // 少し待ってから取得（DBの更新が確実に反映されるまで）
+          await new Promise(resolve => setTimeout(resolve, 500));
+          
           const players = await getSessionPlayers(sessionId);
           // 自分をマーク
           const playersWithYou = players.map(p => ({
             ...p,
-            isYou: p.id === user?.id,
+            isYou: p.id === user.id,
           }));
           setRankingPlayers(playersWithYou);
+          
+          // 自分の最新スコアを取得して更新
+          const myPlayer = playersWithYou.find(p => p.id === user.id);
+          if (myPlayer && myPlayer.score !== initialScore) {
+            console.log('🔄 [Result] 最新スコアを取得:', myPlayer.score, '(旧スコア:', initialScore, ')');
+            setScore(myPlayer.score);
+            hasLoadedLatestScore.current = true;
+          }
         } catch (error) {
           console.error('❌ ランキング取得エラー:', error);
         } finally {
@@ -48,12 +63,18 @@ export default function ResultScreen() {
     };
     
     loadRanking();
-  }, [mode, sessionId, user?.id]);
+  }, [sessionId, user?.id, initialScore]);
 
-  // クイズ結果を保存（1回だけ実行）
+  // クイズ結果を保存（最新スコアで1回だけ実行）
   useEffect(() => {
     const saveResult = async () => {
       if (!user || hasSavedRef.current) return;
+      
+      // sessionIdがある場合、最新スコアの取得が完了するまで少し待つ
+      if (sessionId && !hasLoadedLatestScore.current) {
+        console.log('⏳ [Result] 最新スコアの取得完了を待機中...');
+        return; // 最新スコアの取得が完了するまで待つ
+      }
       
       try {
         hasSavedRef.current = true; // 保存開始をマーク
@@ -86,7 +107,7 @@ export default function ResultScreen() {
           isWin = correctAnswers === totalQuestions;
         }
         
-        // クイズ結果を保存
+        // クイズ結果を保存（最新のスコアを使用）
         await saveQuizAttempt({
           user_id: user.id,
           score: score,

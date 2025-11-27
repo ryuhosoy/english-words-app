@@ -73,6 +73,7 @@ export default function QuizScreen() {
   const [realtimePlayers, setRealtimePlayers] = useState<QuizPlayer[]>([]);
   const [useRealtime, setUseRealtime] = useState(false);
   const channelRef = useRef<RealtimeChannel | null>(null);
+  const hasInitializedRef = useRef(false); // 初期化済みかどうかを追跡
 
   const handleRealtimePlayersUpdate = useCallback((players: QuizPlayer[]) => {
     const normalized = players.map((p) => ({
@@ -83,7 +84,15 @@ export default function QuizScreen() {
 
     const yourself = normalized.find((p) => p.isYou);
     if (yourself) {
-      setScore(yourself.score);
+      // スコアから正解数を逆算（スコア = 正解数 × 100）
+      const calculatedCorrectAnswers = Math.floor(yourself.score / 100);
+      const calculatedScore = calculatedCorrectAnswers * 100; // ポイント = 正解数 × 100
+      
+      setScore(calculatedScore);
+      // 正解数も更新（スコアと同期）
+      setCorrectAnswers(calculatedCorrectAnswers);
+      // 連続正解数も更新（正解数と同じ値にする）
+      setConsecutiveCorrect(Math.min(calculatedCorrectAnswers, quizData.length));
     }
 
     // チームモードの場合、誰かが全問正解したかチェック
@@ -182,14 +191,16 @@ export default function QuizScreen() {
     }
   }, [setupRealtimeSubscription, user, loadQuestionsFromSession]);
 
-  // リアルタイムセッションの初期化
+  // リアルタイムセッションの初期化（初回のみ実行）
   useEffect(() => {
-    if (!user) return;
+    if (!user || hasInitializedRef.current) return;
+
+    hasInitializedRef.current = true; // 初期化開始をマーク
 
     if (teamId && sessionId) {
       console.log('🎮 [Quiz] マッチングモード - チーム:', teamId);
       initializeRealtimeWithExistingSession(sessionId);
-    } else {
+    } else if (!sessionId) {
       console.log('🎮 [Quiz] ソロモード');
       initializeRealtimeSession();
     }
@@ -201,7 +212,8 @@ export default function QuizScreen() {
         channelRef.current = null;
       }
     };
-  }, [initializeRealtimeSession, initializeRealtimeWithExistingSession, sessionId, teamId, user]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]); // userが存在する場合のみ実行（初期化フラグで重複実行を防止）
 
   useEffect(() => {
     if (timeLeft > 0) {
@@ -216,24 +228,45 @@ export default function QuizScreen() {
 
   useEffect(() => {
     if (isQuizComplete && quizData.length > 0) {
-      // 少し遅延させてから結果画面へ（アニメーションのため）
-      const timer = setTimeout(() => {
-        router.push({
-          pathname: "/result",
-          params: { 
-            score, 
-            correctAnswers: consecutiveCorrect, // 連続正解数を送る
-            totalQuestions: quizData.length,
-            sessionId: sessionId || '',
-            mode: teamId ? 'チーム' : 'ソロ',
-            hasSomeoneCompleted: hasSomeoneCompleted ? 'true' : 'false',
-          },
-        });
-      }, 500);
+      // 最終スコアを確実に更新してから結果画面へ遷移
+      const navigateToResult = async () => {
+        // 正解数が問題数を超えないように制限
+        const finalCorrectAnswers = Math.min(consecutiveCorrect, quizData.length);
+        // ポイント = 正解数 × 100として計算
+        const finalScore = finalCorrectAnswers * 100;
+        
+        // リアルタイム機能が有効な場合、最終スコアを再度送信して確実に更新
+        if (useRealtime && sessionId && user) {
+          try {
+            console.log('🔄 [Quiz] 結果画面遷移前に最終スコアを再送信:', finalScore, '(正解数:', finalCorrectAnswers, ')');
+            await updateQuizScore(sessionId, user.id, finalScore);
+            // スコア更新が反映されるまで少し待機
+            await new Promise(resolve => setTimeout(resolve, 200));
+            console.log('✅ [Quiz] 最終スコア更新完了');
+          } catch (error) {
+            console.error('❌ [Quiz] 最終スコア再送信エラー:', error);
+          }
+        }
+        
+        // 少し遅延させてから結果画面へ（アニメーションとスコア更新の反映待ちのため）
+        setTimeout(() => {
+          router.push({
+            pathname: "/result",
+            params: { 
+              score: finalScore, 
+              correctAnswers: finalCorrectAnswers, // 連続正解数を送る（問題数で制限）
+              totalQuestions: quizData.length,
+              sessionId: sessionId || '',
+              mode: teamId ? 'チーム' : 'ソロ',
+              hasSomeoneCompleted: hasSomeoneCompleted ? 'true' : 'false',
+            },
+          });
+        }, 300);
+      };
       
-      return () => clearTimeout(timer);
+      navigateToResult();
     }
-  }, [isQuizComplete, score, consecutiveCorrect, sessionId, teamId, quizData.length, hasSomeoneCompleted]);
+  }, [isQuizComplete, score, consecutiveCorrect, sessionId, teamId, quizData.length, hasSomeoneCompleted, useRealtime, user]);
 
   const handleAnswer = async (selectedIndex: number) => {
     if (quizData.length === 0 || currentQuestion >= quizData.length || isQuizComplete) return;
@@ -242,26 +275,40 @@ export default function QuizScreen() {
     
     if (isCorrect) {
       // 正解の場合
-      const newConsecutive = consecutiveCorrect + 1;
-      const newScore = score + 100;
+      // 連続正解数が問題数を超えないように制限
+      const newConsecutive = Math.min(consecutiveCorrect + 1, quizData.length);
       const newCorrectAnswers = correctAnswers + 1;
+      // ポイントは正解数 × 100として計算
+      const newScore = newCorrectAnswers * 100;
       
       setConsecutiveCorrect(newConsecutive);
-      setScore(newScore);
       setCorrectAnswers(newCorrectAnswers);
+      setScore(newScore);
+      
+      // 全問正解したかチェック（スコア更新の前にチェック）
+      const isAllCorrect = newConsecutive >= quizData.length;
       
       // リアルタイム機能が有効な場合、Supabaseに送信
       if (useRealtime && sessionId && user) {
         try {
           await updateQuizScore(sessionId, user.id, newScore);
-          console.log('📤 [Quiz] スコア送信:', newScore);
+          console.log('📤 [Quiz] スコア送信:', newScore, '(正解数:', newCorrectAnswers, ')');
+          
+          // 全問正解の場合は、スコア更新が完了してから少し待ってクイズ完了にする
+          // （DBの更新が確実に反映されるまで待つ）
+          if (isAllCorrect) {
+            console.log('🎉 全問正解！最終スコア更新完了を待機中...');
+            // スコア更新が確実に反映されるまで少し待機
+            await new Promise(resolve => setTimeout(resolve, 300));
+            console.log('✅ 最終スコア更新完了');
+          }
         } catch (error) {
           console.error('❌ [Quiz] スコア送信エラー:', error);
         }
       }
       
-      // 全問正解したかチェック
-      if (newConsecutive >= quizData.length) {
+      // 全問正解した場合
+      if (isAllCorrect) {
         console.log('🎉 全問正解！');
         setIsQuizComplete(true);
         return;
@@ -272,16 +319,19 @@ export default function QuizScreen() {
     } else {
       // 間違えた場合：最初からやり直し + スコアリセット
       console.log('❌ 間違い！最初からやり直し（スコアリセット）');
+      const resetCorrectAnswers = 0;
+      const resetScore = resetCorrectAnswers * 100; // ポイント = 正解数 × 100
+      
       setConsecutiveCorrect(0);
-      setScore(0);
-      setCorrectAnswers(0);
+      setCorrectAnswers(resetCorrectAnswers);
+      setScore(resetScore);
       setCurrentQuestion(0);
       setTimeLeft(15);
       
       // リアルタイム機能が有効な場合、スコアを0に更新
       if (useRealtime && sessionId && user) {
         try {
-          await updateQuizScore(sessionId, user.id, 0);
+          await updateQuizScore(sessionId, user.id, resetScore);
           console.log('📤 [Quiz] スコアリセット送信: 0');
         } catch (error) {
           console.error('❌ [Quiz] スコアリセット送信エラー:', error);
@@ -341,7 +391,7 @@ export default function QuizScreen() {
         </View>
         <View style={styles.progressRow}>
           <Text style={styles.questionText}>
-            問題 {currentQuestion + 1}/{quizData.length} (連続正解: {consecutiveCorrect}/{quizData.length})
+            問題 {currentQuestion + 1}/{quizData.length} (連続正解: {Math.min(consecutiveCorrect, quizData.length)}/{quizData.length})
           </Text>
           <Text style={styles.timeText}>⏰ {timeLeft}秒</Text>
         </View>
