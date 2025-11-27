@@ -88,11 +88,13 @@ export default function QuizScreen() {
       const calculatedCorrectAnswers = Math.floor(yourself.score / 100);
       const calculatedScore = calculatedCorrectAnswers * 100; // ポイント = 正解数 × 100
       
+      // スコアと正解数を更新（DBの値と同期）
       setScore(calculatedScore);
-      // 正解数も更新（スコアと同期）
       setCorrectAnswers(calculatedCorrectAnswers);
-      // 連続正解数も更新（正解数と同じ値にする）
-      setConsecutiveCorrect(Math.min(calculatedCorrectAnswers, quizData.length));
+      
+      // 連続正解数はリアルタイム更新では変更しない
+      // 連続正解数はローカルの状態として管理し、handleAnswer内でのみ更新される
+      // これにより、自分の正解時に連続正解数がリセットされることを防ぐ
     }
 
     // チームモードの場合、誰かが全問正解したかチェック
