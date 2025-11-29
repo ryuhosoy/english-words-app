@@ -2,6 +2,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
+  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -21,7 +22,7 @@ import { getProfile, getRecentGames, getUserAchievements } from "../lib/supabase
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { user, session } = useAuth();
+  const { user, session, signOut } = useAuth();
   const [profile, setProfile] = useState<any>(null);
   const [recentGames, setRecentGames] = useState<any[]>([]);
   const [achievements, setAchievements] = useState<any[]>([]);
@@ -97,6 +98,31 @@ export default function ProfileScreen() {
 
   const displayName = profile?.display_name || profile?.username || user?.user_metadata?.username || user?.email || 'ユーザー';
   const initial = displayName[0]?.toUpperCase() || 'U';
+
+  const handleLogout = () => {
+    Alert.alert(
+      'ログアウト',
+      '本当にログアウトしますか？',
+      [
+        {
+          text: 'キャンセル',
+          style: 'cancel',
+        },
+        {
+          text: 'ログアウト',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await signOut();
+              router.replace('/login');
+            } catch (error: any) {
+              Alert.alert('エラー', error.message || 'ログアウトに失敗しました');
+            }
+          },
+        },
+      ]
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -216,6 +242,15 @@ export default function ProfileScreen() {
             onPress={() => {}}
             variant="outline"
             style={styles.settingsButton}
+            textStyle={styles.settingsButtonText}
+          />
+
+          <Button
+            title="ログアウト"
+            onPress={handleLogout}
+            variant="outline"
+            style={styles.logoutButton}
+            textStyle={styles.logoutButtonText}
           />
         </View>
       </ScrollView>
@@ -330,7 +365,25 @@ const styles = StyleSheet.create({
     backgroundColor: "#ffffff",
     borderColor: "#0000001a",
     borderWidth: 1,
-    height: 38,
+    minHeight: 50,
+  },
+  settingsButtonText: {
+    fontSize: 14,
+    lineHeight: 20,
+    includeFontPadding: false,
+  },
+  logoutButton: {
+    backgroundColor: "#ffffff",
+    borderColor: "#ff4444",
+    borderWidth: 1,
+    minHeight: 50,
+    marginTop: 8,
+  },
+  logoutButtonText: {
+    color: "#ff4444",
+    fontSize: 14,
+    lineHeight: 20,
+    includeFontPadding: false,
   },
   emptyText: {
     fontSize: 14,

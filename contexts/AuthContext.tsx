@@ -66,7 +66,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signUp = async (email: string, password: string, username: string) => {
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -76,6 +76,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       },
     });
     if (error) throw error;
+    
+    // プロフィールを明示的に作成/更新（トリガーが動作しない場合のフォールバック）
+    if (data.user) {
+      try {
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .upsert({
+            id: data.user.id,
+            username: username,
+            display_name: username,
+          }, {
+            onConflict: 'id'
+          });
+        
+        if (profileError) {
+          console.error('❌ [Auth] プロフィール作成エラー:', profileError);
+          // エラーでも続行（トリガーで作成される可能性がある）
+        } else {
+          console.log('✅ [Auth] プロフィール作成成功:', username);
+        }
+      } catch (err) {
+        console.error('❌ [Auth] プロフィール作成例外:', err);
+        // エラーでも続行
+      }
+    }
   };
 
   const signOut = async () => {
