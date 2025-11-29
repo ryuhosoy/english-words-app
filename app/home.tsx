@@ -2,11 +2,11 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import FirstPlaceIcon from "../assets/images/container-8.svg";
 import Avatar from "../components/Avatar";
@@ -14,6 +14,7 @@ import Button from "../components/Button";
 import Card from "../components/Card";
 import { useAuth } from "../contexts/AuthContext";
 import { supabase } from "../lib/supabase";
+import { getProfile } from "../lib/supabase-helpers";
 
 const weeklyRankings = [
   { rankIcon: FirstPlaceIcon, rank: "1", name: "Yuki", points: "2450pt" },
@@ -26,6 +27,32 @@ export default function HomeScreen() {
   const { user, session } = useAuth();
   const [rankings, setRankings] = useState(weeklyRankings);
   const [useRealtimeRanking, setUseRealtimeRanking] = useState(false);
+  const [totalScore, setTotalScore] = useState<number>(0);
+  const [userDisplayName, setUserDisplayName] = useState<string>("");
+
+  // プロフィール情報を読み込む
+  useEffect(() => {
+    const loadProfile = async () => {
+      if (!user) return;
+      
+      try {
+        const profile = await getProfile(user.id);
+        setTotalScore(profile.total_score || 0);
+        setUserDisplayName(
+          profile.display_name || 
+          profile.username || 
+          user.user_metadata?.username || 
+          user.email?.split('@')[0] || 
+          'ユーザー'
+        );
+      } catch (error) {
+        console.error('❌ [Home] プロフィール取得エラー:', error);
+      }
+    };
+    
+    loadProfile();
+    loadRankings(); // 初期表示時にランキングも読み込む
+  }, [user]);
 
   useEffect(() => {
     console.log('🏠 [HomeScreen] マウント');
@@ -37,7 +64,7 @@ export default function HomeScreen() {
     console.log('🔐 [HomeScreen] セッション状態:', session ? '有効' : '無効');
   }, [user, session]);
 
-  // リアルタイムランキング購読
+  // リアルタイムランキング購読 + プロフィール更新購読
   useEffect(() => {
     if (user) {
       console.log('📊 [Home] リアルタイムランキング購読開始');
@@ -48,8 +75,18 @@ export default function HomeScreen() {
           event: 'UPDATE',
           schema: 'public',
           table: 'profiles',
-        }, () => {
-          console.log('🔄 [Home] ランキング更新検知');
+        }, async (payload) => {
+          console.log('🔄 [Home] プロフィール更新検知:', payload);
+          
+          // 自分のプロフィールが更新された場合、総合スコアも更新
+          if (payload.new.id === user.id) {
+            const newScore = (payload.new as any).total_score;
+            if (newScore !== undefined) {
+              setTotalScore(newScore);
+            }
+          }
+          
+          // ランキングも更新
           loadRankings();
         })
         .subscribe((status) => {
@@ -107,7 +144,7 @@ export default function HomeScreen() {
               />
               <View>
                 <Text style={styles.greeting}>こんにちは</Text>
-                <Text style={styles.userName}>Takeshiさん</Text>
+                <Text style={styles.userName}>{userDisplayName || 'ユーザー'}さん</Text>
               </View>
             </View>
             <TouchableOpacity onPress={() => router.push("/profile")}>
@@ -119,7 +156,7 @@ export default function HomeScreen() {
             <View style={styles.scoreContent}>
               <View>
                 <Text style={styles.scoreLabel}>総合スコア</Text>
-                <Text style={styles.scoreValue}>1850</Text>
+                <Text style={styles.scoreValue}>{totalScore.toLocaleString()}</Text>
               </View>
               <Text style={styles.trophyIcon}>🏆</Text>
             </View>
