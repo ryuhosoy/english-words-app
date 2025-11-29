@@ -238,14 +238,6 @@ export default function ProfileScreen() {
           </Card>
 
           <Button
-            title="設定"
-            onPress={() => {}}
-            variant="outline"
-            style={styles.settingsButton}
-            textStyle={styles.settingsButtonText}
-          />
-
-          <Button
             title="ログアウト"
             onPress={handleLogout}
             variant="outline"
