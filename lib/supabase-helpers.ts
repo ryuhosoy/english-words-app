@@ -75,8 +75,12 @@ export async function saveQuizAttempt(
 
   if (error) throw error;
 
+  console.log('✅ クイズ結果を保存しました:', data);
+
   // プロフィールの統計情報を更新
-  await updateProfileAfterQuiz(attempt.user_id, attempt.score, isWin, wordsLearned);
+  // 注: SQL側のトリガー (after_quiz_attempt_insert) が自動的にプロフィールを更新します
+  // クライアント側での更新は不要（競合を防ぐため）
+  // await updateProfileAfterQuiz(attempt.user_id, attempt.score, isWin, wordsLearned);
 
   return data;
 }
@@ -176,6 +180,40 @@ export async function getUserAchievements(userId: string) {
     .eq('user_id', userId);
 
   if (error) throw error;
+  return data;
+}
+
+// トリガー実行ログを確認（デバッグ用）
+export async function checkTriggerExecution(userId: string) {
+  const { data, error } = await supabase
+    .from('trigger_execution_logs')
+    .select('*')
+    .eq('user_id', userId)
+    .order('executed_at', { ascending: false })
+    .limit(5);
+
+  if (error) {
+    console.error('❌ ログ取得エラー:', error);
+    return null;
+  }
+
+  console.log('📋 トリガー実行ログ:', data);
+  return data;
+}
+
+// 最新のトリガーログを表示（デバッグ用）
+export async function showRecentTriggerLogs() {
+  const { data, error } = await supabase
+    .from('v_recent_trigger_logs')
+    .select('*')
+    .limit(10);
+
+  if (error) {
+    console.error('❌ ログ取得エラー:', error);
+    return null;
+  }
+
+  console.table(data);
   return data;
 }
 

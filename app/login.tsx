@@ -8,7 +8,7 @@ import { useAuth } from '../contexts/AuthContext';
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { signIn, signUp, signInAsGuest } = useAuth();
+  const { signIn, signUp } = useAuth();
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -44,17 +44,6 @@ export default function LoginScreen() {
     }
   };
 
-  const handleGuestLogin = async () => {
-    setLoading(true);
-    try {
-      await signInAsGuest();
-      router.replace('/home');
-    } catch (error: any) {
-      Alert.alert('エラー', error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <LinearGradient colors={['#ad46ff', '#4f39f6']} style={styles.container}>
@@ -117,14 +106,6 @@ export default function LoginScreen() {
               </Text>
             </TouchableOpacity>
           </Card>
-
-          <Button
-            title="ゲストとして続ける"
-            onPress={handleGuestLogin}
-            variant="ghost"
-            style={styles.guestButton}
-            textStyle={styles.guestButtonText}
-          />
 
           <TouchableOpacity onPress={() => router.back()}>
             <Text style={styles.backText}>← 戻る</Text>

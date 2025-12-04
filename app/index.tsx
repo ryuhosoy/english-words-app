@@ -1,7 +1,7 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import RankingIcon from '../assets/images/container-12.svg';
 import QuizIcon from '../assets/images/container-3.svg';
 import DailyIcon from '../assets/images/container-5.svg';
@@ -69,10 +69,6 @@ export default function WelcomeScreen() {
             style={styles.startButton}
             textStyle={styles.startButtonText}
           />
-
-          <TouchableOpacity onPress={() => router.push('/home')}>
-            <Text style={styles.skipText}>スキップ →</Text>
-          </TouchableOpacity>
 
           <Text style={styles.footerText}>毎日新しい単語で学習できます</Text>
         </View>

@@ -135,7 +135,7 @@ export default function HomeScreen() {
           <View style={styles.header}>
             <View style={styles.userInfo}>
               <Avatar
-                initial="T"
+                initial={userDisplayName[0]?.toUpperCase() || 'U'}
                 size={38}
                 backgroundColor="#ffffff"
                 textColor="#980ffa"
@@ -148,7 +148,7 @@ export default function HomeScreen() {
               </View>
             </View>
             <TouchableOpacity onPress={() => router.push("/profile")}>
-              <Text style={styles.notificationIcon}>🔔</Text>
+              <Text style={styles.profileIcon}>👤</Text>
             </TouchableOpacity>
           </View>
 
@@ -188,7 +188,6 @@ export default function HomeScreen() {
               <Text style={styles.sectionTitle}>
                 今週のランキング {useRealtimeRanking && <Text style={styles.liveText}>● LIVE</Text>}
               </Text>
-              <Text style={styles.viewAllButton}>すべて見る</Text>
             </View>
 
             <View style={styles.rankingList}>
@@ -276,7 +275,7 @@ const styles = StyleSheet.create({
     fontWeight: "400",
     letterSpacing: -0.44,
   },
-  notificationIcon: {
+  profileIcon: {
     fontSize: 24,
   },
   scoreCard: {
@@ -358,11 +357,6 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: "#00ff00",
     fontWeight: "bold",
-  },
-  viewAllButton: {
-    fontSize: 14,
-    color: "#155cfb",
-    letterSpacing: -0.15,
   },
   rankingList: {
     gap: 10,
