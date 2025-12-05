@@ -66,12 +66,13 @@ export default function ProfileScreen() {
   // レベルと経験値の計算
   const currentLevel = profile?.level || 1;
   const currentExp = profile?.experience || 0;
-  const expForCurrentLevel = (currentLevel - 1) * 500;
-  const expForNextLevel = currentLevel * 500;
-  const expNeeded = expForNextLevel - currentExp;
-  const expProgress = currentExp - expForCurrentLevel;
-  const expProgressPercent = ((expProgress / (expForNextLevel - expForCurrentLevel)) * 100) || 0;
-
+  
+  // 5000区切りでの進捗計算
+  const expPerLevel = 5000;
+  const expInCurrentLevel = currentExp % expPerLevel; // 現在のレベル内での経験値
+  const expNeeded = expPerLevel - expInCurrentLevel; // 次のレベルまで必要な経験値
+  const expProgressPercent = (expInCurrentLevel / expPerLevel) * 100; // 進捗率
+ 
   // 統計情報
   const profileStats = [
     { 
@@ -159,7 +160,7 @@ export default function ProfileScreen() {
               <Text style={styles.progressValue}>{expNeeded} XP</Text>
             </View>
             <ProgressBar progress={expProgressPercent} height={6} />
-            <Text style={styles.progressDetails}>{currentExp} / {expForNextLevel} XP</Text>
+            <Text style={styles.progressDetails}>{expInCurrentLevel.toLocaleString()} / 5,000 XP</Text>
           </Card>
         </LinearGradient>
 

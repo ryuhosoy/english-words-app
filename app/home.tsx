@@ -10,7 +10,6 @@ import {
 } from "react-native";
 import FirstPlaceIcon from "../assets/images/container-8.svg";
 import Avatar from "../components/Avatar";
-import Button from "../components/Button";
 import Card from "../components/Card";
 import { useAuth } from "../contexts/AuthContext";
 import { supabase } from "../lib/supabase";
@@ -212,7 +211,7 @@ export default function HomeScreen() {
             </View>
           </Card>
 
-          <LinearGradient
+          {/* <LinearGradient
             colors={["#f44900", "#f36b10"]}
             style={styles.dailyChallenge}
           >
@@ -233,7 +232,7 @@ export default function HomeScreen() {
                 textStyle={styles.challengeButtonText}
               />
             </View>
-          </LinearGradient>
+          </LinearGradient> */}
         </View>
       </ScrollView>
     </View>
