@@ -15,6 +15,7 @@ export default function ResultScreen() {
   const params = useLocalSearchParams();
   const { user } = useAuth();
   const hasSavedRef = useRef(false); // 既に保存済みかどうかを追跡
+  const isSavingRef = useRef(false); // 現在保存中かどうかを追跡
   const hasLoadedLatestScore = useRef(false); // 最新スコアを既に取得したか
   const [rankingPlayers, setRankingPlayers] = useState<QuizPlayer[]>([]);
   const [isLoadingRanking, setIsLoadingRanking] = useState(false);
@@ -74,7 +75,13 @@ export default function ResultScreen() {
   // クイズ結果を保存（最新スコアで1回だけ実行）
   useEffect(() => {
     const saveResult = async () => {
-      if (!user || hasSavedRef.current) return;
+      // 既に保存済み、または保存中の場合は何もしない
+      if (!user || hasSavedRef.current || isSavingRef.current) {
+        if (isSavingRef.current) {
+          console.log('⏸️ [Result] 既に保存処理が実行中です');
+        }
+        return;
+      }
       
       // sessionIdがある場合、最新スコアの取得が完了するまで少し待つ
       if (sessionId && !hasLoadedLatestScore.current) {
@@ -82,8 +89,11 @@ export default function ResultScreen() {
         return; // 最新スコアの取得が完了するまで待つ
       }
       
+      // 保存開始を即座にマーク（複数回実行を防ぐ）
+      isSavingRef.current = true;
+      hasSavedRef.current = true;
+      
       try {
-        hasSavedRef.current = true; // 保存開始をマーク
         
         // チーム戦の場合、勝敗を判定
         let isWin = false;
@@ -134,12 +144,19 @@ export default function ResultScreen() {
         }
       } catch (error) {
         console.error('❌ クイズ結果保存エラー:', error);
-        hasSavedRef.current = false; // エラー時はリセット（リトライ可能にする）
+        // エラー時はリセット（リトライ可能にする）
+        hasSavedRef.current = false;
+        isSavingRef.current = false;
+      } finally {
+        // 保存処理完了をマーク
+        isSavingRef.current = false;
       }
     };
     
     saveResult();
-  }, [user, score, correctAnswers, totalQuestions, sessionId, mode, accuracy, rankingPlayers]);
+    // 依存配列からscoreを削除（スコア更新による再実行を防ぐ）
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, correctAnswers, totalQuestions, sessionId, mode, accuracy, rankingPlayers.length]);
 
   return (
     <LinearGradient colors={["#f7b100", "#f44900"]} style={styles.container}>

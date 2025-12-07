@@ -74,6 +74,7 @@ export default function QuizScreen() {
   const [useRealtime, setUseRealtime] = useState(false);
   const channelRef = useRef<RealtimeChannel | null>(null);
   const hasInitializedRef = useRef(false); // 初期化済みかどうかを追跡
+  const hasNavigatedRef = useRef(false); // 結果画面への遷移済みかどうかを追跡
 
   const handleRealtimePlayersUpdate = useCallback((players: QuizPlayer[]) => {
     const normalized = players.map((p) => ({
@@ -229,7 +230,10 @@ export default function QuizScreen() {
   }, [timeLeft, isQuizComplete]);
 
   useEffect(() => {
-    if (isQuizComplete && quizData.length > 0) {
+    if (isQuizComplete && quizData.length > 0 && !hasNavigatedRef.current) {
+      // 遷移開始を即座にマーク（複数回実行を防ぐ）
+      hasNavigatedRef.current = true;
+      
       // 最終スコアを確実に更新してから結果画面へ遷移
       const navigateToResult = async () => {
         // 正解数が問題数を超えないように制限
