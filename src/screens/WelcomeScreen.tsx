@@ -1,16 +1,9 @@
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
 import React from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { RootStackParamList } from '../../App';
 import Button from '../components/Button';
 import Card from '../components/Card';
-
-type WelcomeScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Welcome'>;
-
-interface Props {
-  navigation: WelcomeScreenNavigationProp;
-}
 
 const features = [
   {
@@ -30,7 +23,9 @@ const features = [
   },
 ];
 
-export default function WelcomeScreen({ navigation }: Props) {
+export default function WelcomeScreen() {
+  const router = useRouter();
+
   return (
     <LinearGradient
       colors={['#ad46ff', '#4f39f6']}
@@ -61,8 +56,8 @@ export default function WelcomeScreen({ navigation }: Props) {
           </Card>
 
           <Button
-            title="はじめる"
-            onPress={() => navigation.navigate('Home')}
+            title="ログイン / 登録"
+            onPress={() => router.push('/login')}
             style={styles.startButton}
             textStyle={styles.startButtonText}
           />
