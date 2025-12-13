@@ -8,7 +8,7 @@ import Button from "../components/Button";
 import Card from "../components/Card";
 import { useAuth } from "../contexts/AuthContext";
 import { getSessionPlayers, QuizPlayer } from "../lib/realtime-helpers";
-import { checkTriggerExecution, saveQuizAttempt } from "../lib/supabase-helpers";
+import { saveQuizAttempt } from "../lib/supabase-helpers";
 
 export default function ResultScreen() {
   const router = useRouter();
@@ -134,14 +134,6 @@ export default function ResultScreen() {
         }, isWin, wordsLearned);
         
         console.log('✅ クイズ結果を保存しました:', { score, isWin, wordsLearned });
-        
-        // デバッグ: トリガー実行ログを確認（開発時のみ）
-        if (__DEV__) {
-          setTimeout(async () => {
-            console.log('🔍 トリガー実行ログを確認中...');
-            await checkTriggerExecution(user.id);
-          }, 1000);
-        }
       } catch (error) {
         console.error('❌ クイズ結果保存エラー:', error);
         // エラー時はリセット（リトライ可能にする）

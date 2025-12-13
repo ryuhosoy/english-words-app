@@ -183,39 +183,6 @@ export async function getUserAchievements(userId: string) {
   return data;
 }
 
-// トリガー実行ログを確認（デバッグ用）
-export async function checkTriggerExecution(userId: string) {
-  const { data, error } = await supabase
-    .from('trigger_execution_logs')
-    .select('*')
-    .eq('user_id', userId)
-    .order('executed_at', { ascending: false })
-    .limit(5);
-
-  if (error) {
-    console.error('❌ ログ取得エラー:', error);
-    return null;
-  }
-
-  console.log('📋 トリガー実行ログ:', data);
-  return data;
-}
-
-// 最新のトリガーログを表示（デバッグ用）
-export async function showRecentTriggerLogs() {
-  const { data, error } = await supabase
-    .from('v_recent_trigger_logs')
-    .select('*')
-    .limit(10);
-
-  if (error) {
-    console.error('❌ ログ取得エラー:', error);
-    return null;
-  }
-
-  console.table(data);
-  return data;
-}
 
 // 単語リスト取得
 export async function getWords(difficulty?: string, limit: number = 10) {
