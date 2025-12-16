@@ -43,7 +43,7 @@ export default function WelcomeScreen() {
             <Text style={styles.mainIcon}>📚</Text>
           </View>
 
-          <Text style={styles.title}>Word Battle</Text>
+          <Text style={styles.title}>Word Quiz Battle</Text>
           <Text style={styles.subtitle}>チームで学ぶ英単語クイズ</Text>
 
           <Card style={styles.featuresCard}>

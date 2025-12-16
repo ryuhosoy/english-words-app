@@ -53,7 +53,7 @@ export default function LoginScreen() {
             <Text style={styles.mainIcon}>📚</Text>
           </View>
 
-          <Text style={styles.title}>Word Battle</Text>
+          <Text style={styles.title}>Word Quiz Battle</Text>
           <Text style={styles.subtitle}>{isSignUp ? 'アカウント作成' : 'ログイン'}</Text>
 
           <Card style={styles.formCard}>
