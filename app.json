@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "english-words-app",
+    "name": "Word Quiz Battle",
     "slug": "english-words-app",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -11,6 +11,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.ryuhosoy.englishwordsapp",
+      "bundleDisplayName": "Word Quiz Battle",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
