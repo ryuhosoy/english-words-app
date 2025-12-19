@@ -1,6 +1,7 @@
 import { Session, User } from '@supabase/supabase-js';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { deleteAccount as deleteAccountData } from '../lib/supabase-helpers';
 
 type AuthContextType = {
   user: User | null;
@@ -10,6 +11,7 @@ type AuthContextType = {
   signUp: (email: string, password: string, username: string) => Promise<void>;
   signOut: () => Promise<void>;
   signInAsGuest: () => Promise<void>;
+  deleteAccount: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -127,6 +129,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (error) throw error;
   };
 
+  // アカウント削除
+  const deleteAccount = async () => {
+    if (!user) {
+      throw new Error('ユーザーがログインしていません');
+    }
+
+    console.log('🗑️ [Auth] アカウント削除開始');
+    
+    try {
+      // プロフィールと関連データを削除
+      await deleteAccountData(user.id);
+      
+      // ログアウト（セッションを削除）
+      await signOut();
+      
+      console.log('✅ [Auth] アカウント削除完了');
+    } catch (error) {
+      console.error('❌ [Auth] アカウント削除エラー:', error);
+      throw error;
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -137,6 +161,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signUp,
         signOut,
         signInAsGuest,
+        deleteAccount,
       }}
     >
       {children}

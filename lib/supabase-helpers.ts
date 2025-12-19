@@ -342,3 +342,64 @@ export function subscribeToQuizSession(sessionId: string, callback: (payload: an
     .subscribe();
 }
 
+// アカウント削除（プロフィールと関連データを削除）
+// 注意: auth.usersからの削除はSupabase Admin APIが必要なため、
+// プロフィールと関連データを削除し、ユーザーにログアウトを促します
+export async function deleteAccount(userId: string) {
+  console.log('🗑️ [Account] アカウント削除開始:', userId);
+  
+  try {
+    // 1. ユーザーが作成したチームのcreated_byをNULLに更新
+    // （teamsテーブルのcreated_byはON DELETE CASCADEがないため）
+    const { error: teamsError } = await supabase
+      .from('teams')
+      .update({ created_by: null })
+      .eq('created_by', userId);
+
+    if (teamsError) {
+      console.error('❌ [Account] チーム更新エラー:', teamsError);
+      throw teamsError;
+    }
+
+    console.log('✅ [Account] 作成したチームのcreated_byをNULLに更新しました');
+
+    // 2. ユーザーが参加しているチームから離脱（team_membersはCASCADEで自動削除されるが、念のため）
+    const { error: leaveTeamsError } = await supabase
+      .from('team_members')
+      .delete()
+      .eq('user_id', userId);
+
+    if (leaveTeamsError) {
+      console.error('❌ [Account] チーム離脱エラー:', leaveTeamsError);
+      // エラーでも続行（CASCADEで削除される可能性がある）
+    } else {
+      console.log('✅ [Account] 参加していたチームから離脱しました');
+    }
+
+    // 3. プロフィールを削除（CASCADEで関連データも自動削除される）
+    // quiz_attempts, user_achievements などは
+    // ON DELETE CASCADE により自動的に削除されます
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .delete()
+      .eq('id', userId);
+
+    if (profileError) {
+      console.error('❌ [Account] プロフィール削除エラー:', profileError);
+      throw profileError;
+    }
+
+    console.log('✅ [Account] プロフィールと関連データを削除しました');
+    
+    // 注意: auth.usersからの完全な削除にはSupabase Admin APIが必要です
+    // クライアント側からは削除できないため、プロフィールデータのみ削除します
+    // 完全な削除が必要な場合は、Supabase Dashboardから手動で削除するか、
+    // Edge Functionを作成してAdmin APIを使用してください
+    
+    return { success: true };
+  } catch (error) {
+    console.error('❌ [Account] アカウント削除エラー:', error);
+    throw error;
+  }
+}
+

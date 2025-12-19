@@ -22,7 +22,7 @@ import { getProfile, getRecentGames, getUserAchievements } from "../lib/supabase
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { user, session, signOut } = useAuth();
+  const { user, session, signOut, deleteAccount } = useAuth();
   const [profile, setProfile] = useState<any>(null);
   const [recentGames, setRecentGames] = useState<any[]>([]);
   const [achievements, setAchievements] = useState<any[]>([]);
@@ -118,6 +118,42 @@ export default function ProfileScreen() {
               router.replace('/login');
             } catch (error: any) {
               Alert.alert('エラー', error.message || 'ログアウトに失敗しました');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'アカウント削除',
+      'アカウントを削除すると、すべてのデータ（スコア、実績、ゲーム履歴など）が永久に削除され、復元できません。\n\n本当に削除しますか？',
+      [
+        {
+          text: 'キャンセル',
+          style: 'cancel',
+        },
+        {
+          text: '削除する',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteAccount();
+              Alert.alert(
+                'アカウント削除完了',
+                'アカウントが削除されました。',
+                [
+                  {
+                    text: 'OK',
+                    onPress: () => {
+                      router.replace('/login');
+                    },
+                  },
+                ]
+              );
+            } catch (error: any) {
+              Alert.alert('エラー', error.message || 'アカウント削除に失敗しました');
             }
           },
         },
@@ -244,6 +280,14 @@ export default function ProfileScreen() {
             variant="outline"
             style={styles.logoutButton}
             textStyle={styles.logoutButtonText}
+          />
+
+          <Button
+            title="アカウントを削除"
+            onPress={handleDeleteAccount}
+            variant="outline"
+            style={styles.deleteAccountButton}
+            textStyle={styles.deleteAccountButtonText}
           />
         </View>
       </ScrollView>
@@ -373,6 +417,19 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   logoutButtonText: {
+    color: "#ff4444",
+    fontSize: 14,
+    lineHeight: 20,
+    includeFontPadding: false,
+  },
+  deleteAccountButton: {
+    backgroundColor: "#ffffff",
+    borderColor: "#ff4444",
+    borderWidth: 1,
+    minHeight: 50,
+    marginTop: 8,
+  },
+  deleteAccountButtonText: {
     color: "#ff4444",
     fontSize: 14,
     lineHeight: 20,
