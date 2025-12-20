@@ -26,9 +26,43 @@ export async function findOrCreateMatchingTeam(
     return fixedTeam;
   }
   
-  // 固定チームに参加できなかった場合はエラー
-  throw new Error('固定チームに参加できませんでした。チームが満員の可能性があります。');
+  // 固定チームに参加できなかった場合、新しいチームを作成
+  console.log('⚠️ [Matching] 固定チームに参加できなかったため、新しいチームを作成します');
+  const { data: newTeam, error: createError } = await supabase
+    .from('teams')
+    .insert({
+      name: 'マッチングチーム',
+      level: level,
+      created_by: userId,
+      max_members: 4,
+    })
+    .select(`
+      *,
+      team_members (user_id)
+    `)
+    .single();
 
+  if (createError) {
+    console.error('❌ [Matching] 新規チーム作成エラー:', createError);
+    throw new Error('チームの作成に失敗しました: ' + createError.message);
+  }
+
+  // 作成者を最初のメンバーとして追加
+  const { error: memberError } = await supabase
+    .from('team_members')
+    .insert({
+      team_id: newTeam.id,
+      user_id: userId,
+      is_ready: true,
+    });
+
+  if (memberError) {
+    console.error('❌ [Matching] チームメンバー追加エラー:', memberError);
+    throw new Error('チームへの参加に失敗しました: ' + memberError.message);
+  }
+
+  console.log('✅ [Matching] 新規チーム作成完了:', newTeam.id);
+  return newTeam;
 }
 
 async function tryJoinFixedTeam(teamId: string, userId: string, level: string) {
