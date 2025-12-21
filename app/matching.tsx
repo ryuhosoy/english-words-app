@@ -114,24 +114,24 @@ export default function MatchingScreen() {
         console.log("⏰ [Matching] 短時間待機 - ソロモードでクイズ開始");
         setStatus("クイズを開始します！");
         
-        // ソロモードでクイズセッションを作成
-        createQuizSession(teamId).then((session) => {
-          console.log("✅ [Matching] セッション作成成功:", session.id);
+        // ソロモードでクイズセッションを作成（teamIdなし）
+        createQuizSession().then((session) => {
+          console.log("✅ [Matching] セッション作成成功（ソロモード）:", session.id);
           setTimeout(() => {
             isNavigatingRef.current = true;
+            // ソロモードなのでteamIdを渡さない
             router.replace({
               pathname: "/quiz",
-              params: { teamId, sessionId: session.id },
+              params: { sessionId: session.id },
             });
           }, 1000);
         }).catch((error) => {
           console.error('❌ [Matching] セッション作成エラー:', error);
-          // エラーでもクイズ画面に遷移（フォールバック）
+          // エラーでもクイズ画面に遷移（フォールバック、teamIdなしでソロモード）
           setTimeout(() => {
             isNavigatingRef.current = true;
             router.replace({
               pathname: "/quiz",
-              params: { teamId },
             });
           }, 1000);
         });

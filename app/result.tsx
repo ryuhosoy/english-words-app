@@ -27,6 +27,7 @@ export default function ResultScreen() {
   // 正解数が問題数を超えないように制限
   const correctAnswers = Math.min(rawCorrectAnswers, totalQuestions);
   const sessionId = params.sessionId as string | undefined;
+  console.log("mode", params.mode);
   const mode = (params.mode as string) || "ソロ";
   const hasSomeoneCompleted = params.hasSomeoneCompleted === 'true';
   const accuracy = Math.round((correctAnswers / totalQuestions) * 100);
@@ -73,8 +74,15 @@ export default function ResultScreen() {
   }, [sessionId, user?.id, initialScore]);
 
   // クイズ結果を保存（最新スコアで1回だけ実行）
+  // ソロモードの場合は保存しない（total_scoreに加算しない）
   useEffect(() => {
     const saveResult = async () => {
+      // ソロモードの場合は保存しない（total_scoreに加算しない）
+      if (mode === "ソロ") {
+        console.log('ℹ️ [Result] ソロモードのため、スコアを保存しません（total_scoreに加算しません）');
+        return;
+      }
+
       // 既に保存済み、または保存中の場合は何もしない
       if (!user || hasSavedRef.current || isSavingRef.current) {
         if (isSavingRef.current) {
@@ -124,6 +132,7 @@ export default function ResultScreen() {
         }
         
         // クイズ結果を保存（最新のスコアを使用）
+        // チームモードのみ保存（ソロモードは既にreturnしている）
         await saveQuizAttempt({
           user_id: user.id,
           score: score,

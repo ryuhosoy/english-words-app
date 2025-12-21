@@ -200,11 +200,17 @@ export default function QuizScreen() {
 
     hasInitializedRef.current = true; // 初期化開始をマーク
 
-    if (teamId && sessionId) {
-      console.log('🎮 [Quiz] マッチングモード - チーム:', teamId);
+    if (sessionId) {
+      // sessionIdがある場合（マッチングモードまたはソロモードで既にセッション作成済み）
+      if (teamId) {
+        console.log('🎮 [Quiz] マッチングモード - チーム:', teamId);
+      } else {
+        console.log('🎮 [Quiz] ソロモード - 既存セッション:', sessionId);
+      }
       initializeRealtimeWithExistingSession(sessionId);
-    } else if (!sessionId) {
-      console.log('🎮 [Quiz] ソロモード');
+    } else {
+      // sessionIdがない場合（新規ソロモード）
+      console.log('🎮 [Quiz] ソロモード - 新規セッション作成');
       initializeRealtimeSession();
     }
 
