@@ -12,6 +12,73 @@ export interface QuizPlayer {
   isYou: boolean;
 }
 
+// 参加可能なチームを検索（空きがあるチーム）
+async function findAvailableTeam(userId: string, level: string) {
+  console.log('🔍 [Matching] 参加可能なチームを検索中 - レベル:', level);
+  
+  // 同じレベルのチームを取得
+  const { data: teams, error } = await supabase
+    .from('teams')
+    .select(`
+      *,
+      team_members (user_id)
+    `)
+    .eq('level', level)
+    .order('created_at', { ascending: false })
+    .limit(20); // 最新20チームを取得
+
+  if (error) {
+    console.error('❌ [Matching] チーム検索エラー:', error);
+    return null;
+  }
+
+  if (!teams || teams.length === 0) {
+    console.log('ℹ️ [Matching] 参加可能なチームが見つかりませんでした');
+    return null;
+  }
+
+  // 空きがあるチームを探す
+  for (const team of teams) {
+    // 既に自分がメンバーかチェック
+    const isAlreadyMember = team.team_members?.some((m: any) => m.user_id === userId);
+    if (isAlreadyMember) {
+      console.log('ℹ️ [Matching] 既にこのチームのメンバーです:', team.id);
+      continue;
+    }
+
+    // メンバー数をカウント
+    const memberCount = team.team_members?.length || 0;
+    const maxMembers = team.max_members ?? 4;
+
+    // 空きがある場合
+    if (memberCount < maxMembers) {
+      console.log(`✅ [Matching] 参加可能なチームを発見: ${team.name} (${memberCount}/${maxMembers})`);
+      
+      // チームに参加を試行
+      const { error: joinError } = await supabase
+        .from('team_members')
+        .insert({
+          team_id: team.id,
+          user_id: userId,
+          is_ready: true,
+        });
+
+      if (joinError) {
+        // 参加エラー（競合の可能性）は次のチームを試す
+        console.warn('⚠️ [Matching] チーム参加エラー（次のチームを試します）:', joinError);
+        continue;
+      }
+
+      // 参加成功
+      console.log('✅ [Matching] チームに参加しました:', team.name);
+      return team;
+    }
+  }
+
+  console.log('ℹ️ [Matching] 参加可能なチームが見つかりませんでした（すべて満員）');
+  return null;
+}
+
 // マッチングのためのチームを探すか作成（トリガー対応版）
 export async function findOrCreateMatchingTeam(
   userId: string,
@@ -20,14 +87,21 @@ export async function findOrCreateMatchingTeam(
 ) {
   console.log('🔍 [Matching] チーム検索開始 - レベル:', level);
 
-  // 固定チームIDを使用（常に固定チームを使用）
+  // 1. 固定チームIDに参加を試行（優先）
   const fixedTeam = await tryJoinFixedTeam(FIXED_TEAM_ID, userId, level);
   if (fixedTeam) {
     return fixedTeam;
   }
   
-  // 固定チームに参加できなかった場合、新しいチームを作成
-  console.log('⚠️ [Matching] 固定チームに参加できなかったため、新しいチームを作成します');
+  // 2. 固定チームに参加できなかった場合、他の参加可能なチームを検索
+  console.log('⚠️ [Matching] 固定チームに参加できなかったため、他のチームを検索します');
+  const availableTeam = await findAvailableTeam(userId, level);
+  if (availableTeam) {
+    return availableTeam;
+  }
+  
+  // 3. 参加可能なチームが見つからない場合、新しいチームを作成
+  console.log('⚠️ [Matching] 参加可能なチームが見つからなかったため、新しいチームを作成します');
   const { data: newTeam, error: createError } = await supabase
     .from('teams')
     .insert({
