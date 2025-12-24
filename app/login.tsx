@@ -49,9 +49,9 @@ export default function LoginScreen() {
     <LinearGradient colors={['#ad46ff', '#4f39f6']} style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.content}>
-          <View style={styles.iconContainer}>
+          {/* <View style={styles.iconContainer}>
             <Text style={styles.mainIcon}>📚</Text>
-          </View>
+          </View> */}
 
           <Text style={styles.title}>Word Quiz Battle</Text>
           <Text style={styles.subtitle}>{isSignUp ? 'アカウント作成' : 'ログイン'}</Text>

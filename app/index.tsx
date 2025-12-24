@@ -39,9 +39,9 @@ export default function WelcomeScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.content}>
-          <View style={styles.iconContainer}>
+          {/* <View style={styles.iconContainer}>
             <Text style={styles.mainIcon}>📚</Text>
-          </View>
+          </View> */}
 
           <Text style={styles.title}>Word Quiz Battle</Text>
           <Text style={styles.subtitle}>チームで学ぶ英単語クイズ</Text>
@@ -84,10 +84,11 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: 20,
-    paddingVertical: 80,
+    paddingVertical: 60,
   },
   content: {
     flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
     gap: 20,
   },
@@ -111,12 +112,14 @@ const styles = StyleSheet.create({
     fontSize: 36,
     color: '#ffffff',
     fontWeight: '400',
+    textAlign: 'center',
     letterSpacing: 0.37,
   },
   subtitle: {
     fontSize: 18,
     color: '#daeafe',
     fontWeight: '400',
+    textAlign: 'center',
     letterSpacing: -0.44,
   },
   featuresCard: {
