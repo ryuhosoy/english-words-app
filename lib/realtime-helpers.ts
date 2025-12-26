@@ -87,14 +87,8 @@ export async function findOrCreateMatchingTeam(
 ) {
   console.log('🔍 [Matching] チーム検索開始 - レベル:', level);
 
-  // 1. 固定チームIDに参加を試行（優先）
-  const fixedTeam = await tryJoinFixedTeam(FIXED_TEAM_ID, userId, level);
-  if (fixedTeam) {
-    return fixedTeam;
-  }
-  
-  // 2. 固定チームに参加できなかった場合、他の参加可能なチームを検索
-  console.log('⚠️ [Matching] 固定チームに参加できなかったため、他のチームを検索します');
+  // 1. 最初から参加可能なチームを検索（同じレベル、空きがある）
+  console.log('🔍 [Matching] 参加可能なチームを検索します');
   const availableTeam = await findAvailableTeam(userId, level);
   if (availableTeam) {
     return availableTeam;
