@@ -112,7 +112,7 @@ export default function MatchingScreen() {
       console.log("⏰ [Matching] タイムアウトチェック開始 - メンバー数:", membersRef.current.length);
       if (membersRef.current.length < 4 && !isNavigatingRef.current) {
         console.log("⏰ [Matching] 短時間待機 - ソロモードでクイズ開始");
-        setStatus("クイズを開始します！");
+        setStatus("ソロモードでクイズを開始します");
         
         // ソロモードでクイズセッションを作成（teamIdなし）
         createQuizSession().then((session) => {
@@ -240,7 +240,9 @@ export default function MatchingScreen() {
 
           <Text style={styles.title}>{status}</Text>
           <Text style={styles.subtitle}>
-            {members.length < 4
+            {status.includes("ソロモード")
+              ? "一人でクイズに挑戦します"
+              : members.length < 4
               ? "他のプレイヤーを待っています..."
               : "まもなく開始します！"}
           </Text>

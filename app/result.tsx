@@ -187,6 +187,14 @@ export default function ResultScreen() {
         <Card style={styles.resultCard}>
           <Text style={styles.scoreLabel}>あなたのスコア</Text>
           <Text style={styles.scoreValue}>{score}</Text>
+          
+          {mode === "ソロ" && (
+            <View style={styles.soloModeNotice}>
+              <Text style={styles.soloModeNoticeText}>
+                ℹ️ ソロモードのため、このスコアはランキングに反映されません
+              </Text>
+            </View>
+          )}
 
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
@@ -338,6 +346,21 @@ const styles = StyleSheet.create({
     fontWeight: "400",
     textAlign: "center",
     letterSpacing: 0.26,
+  },
+  soloModeNotice: {
+    backgroundColor: "#fff3cd",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#ffc107",
+    marginTop: 8,
+  },
+  soloModeNoticeText: {
+    fontSize: 13,
+    color: "#856404",
+    textAlign: "center",
+    fontWeight: "500",
   },
   statsRow: {
     flexDirection: "row",
