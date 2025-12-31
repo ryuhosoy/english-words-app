@@ -277,7 +277,7 @@ eas build --platform android
 ## 👥 開発者
 
 - **開発者**: Ryuhei Hosoya
-- **連絡先**: ryuhosoy@icloud.com（要変更）
+- **連絡先**: ryuhosoy@icloud.com
 
 ## 🔗 関連リンク
 
