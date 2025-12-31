@@ -12,6 +12,7 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.ryuhosoy.englishwordsapp",
       "bundleDisplayName": "Word Quiz Battle",
+      "buildNumber": "2",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
