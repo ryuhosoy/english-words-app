@@ -1,5 +1,5 @@
 import { Database } from './database.types';
-import { supabase } from './supabase';
+import { supabase, supabaseAdmin } from './supabase';
 
 type Profile = Database['public']['Tables']['profiles']['Row'];
 type QuizAttempt = Database['public']['Tables']['quiz_attempts']['Insert'];
@@ -391,10 +391,25 @@ export async function deleteAccount(userId: string) {
 
     console.log('✅ [Account] プロフィールと関連データを削除しました');
     
-    // 注意: auth.usersからの完全な削除にはSupabase Admin APIが必要です
-    // クライアント側からは削除できないため、プロフィールデータのみ削除します
-    // 完全な削除が必要な場合は、Supabase Dashboardから手動で削除するか、
-    // Edge Functionを作成してAdmin APIを使用してください
+    // 4. auth.usersからも削除（Service Role Keyを使用）
+    // ⚠️ 警告: これはテスト環境でのみ使用してください
+    // 本番環境ではEdge Functionを使用してください
+    if (supabaseAdmin) {
+      try {
+        const { error: deleteUserError } = await supabaseAdmin.auth.admin.deleteUser(userId);
+        if (deleteUserError) {
+          console.error('❌ [Account] auth.users削除エラー:', deleteUserError);
+          // エラーでも続行（プロフィールは削除済み）
+        } else {
+          console.log('✅ [Account] auth.usersからも削除しました');
+        }
+      } catch (error) {
+        console.error('❌ [Account] auth.users削除例外:', error);
+        // エラーでも続行（プロフィールは削除済み）
+      }
+    } else {
+      console.warn('⚠️ [Account] Service Role Keyが設定されていません。auth.usersからの削除をスキップします。');
+    }
     
     return { success: true };
   } catch (error) {

@@ -5,6 +5,7 @@ import 'react-native-url-polyfill/auto';
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
+const serviceRoleKey = process.env.EXPO_PUBLIC_SUPABASE_SERVICE_ROLE_KEY || '';
 
 // Web環境用のストレージアダプター
 const webStorage = {
@@ -33,5 +34,17 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     detectSessionInUrl: false,
   },
 });
+
+// ⚠️ 警告: Service Role Keyをクライアント側で使用することは非常に危険です
+// 本番環境では絶対に使用しないでください
+// テスト環境でのみ使用し、本番環境ではEdge Functionを使用してください
+export const supabaseAdmin = serviceRoleKey
+  ? createClient(supabaseUrl, serviceRoleKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    })
+  : null;
 
  
