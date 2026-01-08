@@ -93,6 +93,28 @@ export default function QuizScreen() {
     setUseRealtime(true);
   }, [handleRealtimePlayersUpdate]);
 
+  // 選択肢をランダムにシャッフルする関数
+  const shuffleAnswers = useCallback((question: QuizQuestion): QuizQuestion => {
+    // 選択肢と正解のインデックスを取得
+    const answers = [...question.answers];
+    const correctAnswer = answers[question.correctIndex];
+    
+    // 選択肢をシャッフル
+    for (let i = answers.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [answers[i], answers[j]] = [answers[j], answers[i]];
+    }
+    
+    // 新しい正解のインデックスを取得
+    const newCorrectIndex = answers.indexOf(correctAnswer);
+    
+    return {
+      ...question,
+      answers,
+      correctIndex: newCorrectIndex,
+    };
+  }, []);
+
   // セッションから問題を取得
   const loadQuestionsFromSession = useCallback(async (targetSessionId: string) => {
     try {
@@ -106,15 +128,18 @@ export default function QuizScreen() {
         throw new Error('問題が見つかりませんでした');
       }
       
-      setQuizData(questions);
+      // 各問題の選択肢をランダムにシャッフル
+      const shuffledQuestions = questions.map((q: QuizQuestion) => shuffleAnswers(q));
+      
+      setQuizData(shuffledQuestions);
       setIsLoadingQuestions(false);
-      console.log('✅ [Quiz] 問題取得完了:', questions.length, '問');
+      console.log('✅ [Quiz] 問題取得完了:', shuffledQuestions.length, '問（選択肢をランダム化）');
     } catch (err) {
       console.error('❌ [Quiz] 問題取得エラー:', err);
       setError(err instanceof Error ? err.message : '問題の取得に失敗しました');
       setIsLoadingQuestions(false);
     }
-  }, []);
+  }, [shuffleAnswers]);
 
   const initializeRealtimeWithExistingSession = useCallback(async (existingSessionId: string) => {
     try {
