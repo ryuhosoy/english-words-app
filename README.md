@@ -4,6 +4,8 @@
 
 リアルタイムでチームメンバーと協力しながら英単語を学習できるモバイルアプリケーションです。Supabaseを活用したリアルタイムデータ同期により、チームメンバーと同時にクイズに挑戦し、ランキングで競い合うことができます。
 
+📱 **[App Storeでダウンロード](https://apps.apple.com/app/word-quiz-battle/id6756511870)**
+
 ## 📱 主な機能
 
 ### 🎮 リアルタイムクイズ
@@ -281,6 +283,7 @@ eas build --platform android
 
 ## 🔗 関連リンク
 
+- 📱 [App Store - Word Quiz Battle](https://apps.apple.com/app/word-quiz-battle/id6756511870)
 - [Expo Documentation](https://docs.expo.dev/)
 - [Supabase Documentation](https://supabase.com/docs)
 - [React Native Documentation](https://reactnative.dev/)
