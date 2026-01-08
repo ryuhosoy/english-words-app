@@ -17,33 +17,6 @@ import {
 } from "../lib/realtime-helpers";
 import { getSessionQuestions } from "../lib/supabase-helpers";
 
-const quizPlayers = [
-  {
-    rankIcon: FirstRankIcon,
-    rank: "1",
-    name: "Mei",
-    points: "42pt",
-    initial: "M",
-    highlight: false,
-  },
-  {
-    rankIcon: null,
-    rank: "2",
-    name: "あなた",
-    points: "0pt",
-    initial: "Y",
-    highlight: true,
-  },
-  {
-    rankIcon: null,
-    rank: "3",
-    name: "Yuki",
-    points: "0pt",
-    initial: "Y",
-    highlight: false,
-  },
-];
-
 interface QuizQuestion {
   word: string;
   example: string;
@@ -360,17 +333,37 @@ export default function QuizScreen() {
   };
 
   const progress = quizData.length > 0 ? ((currentQuestion + 1) / quizData.length) * 100 : 0;
-  const fallbackPlayers: QuizPlayer[] = quizPlayers.map((player, index) => ({
-    id: `fallback_${index}`,
-    name: player.name,
-    score: parseInt(player.points?.replace(/\D/g, "") || "0", 10),
-    rank: index + 1,
-    avatar: (player.initial || player.name[0] || "P").slice(0, 1),
-    isYou: player.highlight,
-  }));
-  const rankingPlayers = (
-    useRealtime && realtimePlayers.length > 0 ? realtimePlayers : fallbackPlayers
-  ).slice(0, 3);
+  
+  // ソロモードの判定
+  const isSoloMode = !teamId;
+  
+  // ランキングプレイヤーの決定
+  let rankingPlayers: QuizPlayer[] = [];
+  if (isSoloMode) {
+    // ソロモード: 自分だけを表示
+    if (useRealtime && realtimePlayers.length > 0) {
+      // リアルタイムデータから自分だけを取得
+      const myself = realtimePlayers.find(p => p.id === user?.id);
+      if (myself) {
+        rankingPlayers = [myself];
+      }
+    } else if (user) {
+      // フォールバック: 自分のみ表示
+      rankingPlayers = [{
+        id: user.id,
+        name: user.user_metadata?.username || user.email || 'あなた',
+        score: score,
+        rank: 1,
+        avatar: (user.user_metadata?.username || user.email || 'あなた')[0]?.toUpperCase() || 'U',
+        isYou: true,
+      }];
+    }
+  } else {
+    // チームモード: リアルタイムデータのみ表示
+    rankingPlayers = useRealtime && realtimePlayers.length > 0 
+      ? realtimePlayers.slice(0, 3)
+      : [];
+  }
 
   // ローディング状態
   if (isLoadingQuestions) {
