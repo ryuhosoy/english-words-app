@@ -229,9 +229,32 @@ export default function QuizScreen() {
       }, 1000);
       return () => clearTimeout(timer);
     } else if (timeLeft === 0 && !isQuizComplete) {
-      handleNextQuestion();
+      // 時間切れ：間違えた場合と同じ扱い（最初からやり直し + スコアリセット）
+      const handleTimeUp = async () => {
+        console.log('⏰ 時間切れ！最初からやり直し（スコアリセット）');
+        const resetCorrectAnswers = 0;
+        const resetScore = resetCorrectAnswers * 100; // ポイント = 正解数 × 100
+        
+        setConsecutiveCorrect(0);
+        setCorrectAnswers(resetCorrectAnswers);
+        setScore(resetScore);
+        setCurrentQuestion(0);
+        setTimeLeft(15);
+        
+        // リアルタイム機能が有効な場合、スコアを0に更新
+        if (useRealtime && sessionId && user) {
+          try {
+            await updateQuizScore(sessionId, user.id, resetScore);
+            console.log('📤 [Quiz] 時間切れ - スコアリセット送信: 0');
+          } catch (error) {
+            console.error('❌ [Quiz] 時間切れ - スコアリセット送信エラー:', error);
+          }
+        }
+      };
+      
+      handleTimeUp();
     }
-  }, [timeLeft, isQuizComplete]);
+  }, [timeLeft, isQuizComplete, useRealtime, sessionId, user]);
 
   useEffect(() => {
     if (isQuizComplete && quizData.length > 0 && !hasNavigatedRef.current) {
