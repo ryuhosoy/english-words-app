@@ -7,7 +7,7 @@ import Avatar from "../components/Avatar";
 import Button from "../components/Button";
 import Card from "../components/Card";
 import { useAuth } from "../contexts/AuthContext";
-import { getSessionPlayers, QuizPlayer } from "../lib/realtime-helpers";
+import { deleteTeamAfterMatch, getSessionPlayers, QuizPlayer } from "../lib/realtime-helpers";
 import { saveQuizAttempt } from "../lib/supabase-helpers";
 
 export default function ResultScreen() {
@@ -27,11 +27,22 @@ export default function ResultScreen() {
   // 正解数が問題数を超えないように制限
   const correctAnswers = Math.min(rawCorrectAnswers, totalQuestions);
   const sessionId = params.sessionId as string | undefined;
+  const teamId = params.teamId as string | undefined;
   console.log("mode", params.mode);
   const mode = (params.mode as string) || "ソロ";
   const hasSomeoneCompleted = params.hasSomeoneCompleted === 'true';
   const accuracy = Math.round((correctAnswers / totalQuestions) * 100);
-  
+  const hasDeletedTeamRef = useRef(false);
+
+  // 試合終了時（チームモード）：teams / team_members を削除し、次回マッチングで古い参加者が残らないようにする
+  useEffect(() => {
+    if (mode !== "チーム" || !teamId || hasDeletedTeamRef.current) return;
+    hasDeletedTeamRef.current = true;
+    deleteTeamAfterMatch(teamId).catch((err) => {
+      console.error("❌ [Result] チーム削除エラー（無視）:", err);
+    });
+  }, [mode, teamId]);
+
   // ランキングを取得し、最新スコアを取得（sessionIdがある場合）
   useEffect(() => {
     const loadRanking = async () => {

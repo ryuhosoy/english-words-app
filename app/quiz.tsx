@@ -2,7 +2,13 @@ import type { RealtimeChannel } from "@supabase/supabase-js";
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  ActivityIndicator,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import FirstRankIcon from "../assets/images/container-17.svg";
 import Avatar from "../components/Avatar";
 import Card from "../components/Card";
@@ -39,75 +45,86 @@ export default function QuizScreen() {
   const [quizData, setQuizData] = useState<QuizQuestion[]>([]);
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   // リアルタイム用の状態
-  const [sessionId, setSessionId] = useState<string | null>(params.sessionId as string || null);
-  const [teamId] = useState<string | null>(params.teamId as string || null);
+  const [sessionId, setSessionId] = useState<string | null>(
+    (params.sessionId as string) || null,
+  );
+  const [teamId] = useState<string | null>((params.teamId as string) || null);
   const [realtimePlayers, setRealtimePlayers] = useState<QuizPlayer[]>([]);
   const [useRealtime, setUseRealtime] = useState(false);
   const channelRef = useRef<RealtimeChannel | null>(null);
   const hasInitializedRef = useRef(false); // 初期化済みかどうかを追跡
   const hasNavigatedRef = useRef(false); // 結果画面への遷移済みかどうかを追跡
 
-  const handleRealtimePlayersUpdate = useCallback((players: QuizPlayer[]) => {
-    const normalized = players.map((p) => ({
-      ...p,
-      isYou: p.id === user?.id,
-    }));
-    setRealtimePlayers(normalized);
+  const handleRealtimePlayersUpdate = useCallback(
+    (players: QuizPlayer[]) => {
+      const normalized = players.map((p) => ({
+        ...p,
+        isYou: p.id === user?.id,
+      }));
+      setRealtimePlayers(normalized);
 
-    const yourself = normalized.find((p) => p.isYou);
-    if (yourself) {
-      // スコアから正解数を逆算（スコア = 正解数 × 100）
-      const calculatedCorrectAnswers = Math.floor(yourself.score / 100);
-      const calculatedScore = calculatedCorrectAnswers * 100; // ポイント = 正解数 × 100
-      
-      // スコアと正解数を更新（DBの値と同期）
-      setScore(calculatedScore);
-      setCorrectAnswers(calculatedCorrectAnswers);
-      
-      // 連続正解数はリアルタイム更新では変更しない
-      // 連続正解数はローカルの状態として管理し、handleAnswer内でのみ更新される
-      // これにより、自分の正解時に連続正解数がリセットされることを防ぐ
-    }
+      const yourself = normalized.find((p) => p.isYou);
+      if (yourself) {
+        // スコアから正解数を逆算（スコア = 正解数 × 100）
+        const calculatedCorrectAnswers = Math.floor(yourself.score / 100);
+        const calculatedScore = calculatedCorrectAnswers * 100; // ポイント = 正解数 × 100
 
-    // チームモードの場合、誰かが全問正解したかチェック
-    if (teamId && quizData.length > 0) {
-      const maxScore = quizData.length * 100; // 全問正解のスコア
-      const someoneCompleted = normalized.some(p => p.score >= maxScore);
-      if (someoneCompleted) {
-        setHasSomeoneCompleted(true);
-        setIsQuizComplete(true);
+        // スコアと正解数を更新（DBの値と同期）
+        setScore(calculatedScore);
+        setCorrectAnswers(calculatedCorrectAnswers);
+
+        // 連続正解数はリアルタイム更新では変更しない
+        // 連続正解数はローカルの状態として管理し、handleAnswer内でのみ更新される
+        // これにより、自分の正解時に連続正解数がリセットされることを防ぐ
       }
-    }
-  }, [user?.id, teamId, quizData.length]);
 
-  const setupRealtimeSubscription = useCallback((targetSessionId: string) => {
-    if (channelRef.current) {
-      channelRef.current.unsubscribe();
-      channelRef.current = null;
-    }
+      // チームモードの場合、誰かが全問正解したかチェック
+      if (teamId && quizData.length > 0) {
+        const maxScore = quizData.length * 100; // 全問正解のスコア
+        const someoneCompleted = normalized.some((p) => p.score >= maxScore);
+        if (someoneCompleted) {
+          setHasSomeoneCompleted(true);
+          setIsQuizComplete(true);
+        }
+      }
+    },
+    [user?.id, teamId, quizData.length],
+  );
 
-    const channel = subscribeToSessionUpdates(targetSessionId, handleRealtimePlayersUpdate);
-    channelRef.current = channel;
-    setUseRealtime(true);
-  }, [handleRealtimePlayersUpdate]);
+  const setupRealtimeSubscription = useCallback(
+    (targetSessionId: string) => {
+      if (channelRef.current) {
+        channelRef.current.unsubscribe();
+        channelRef.current = null;
+      }
+
+      const channel = subscribeToSessionUpdates(
+        targetSessionId,
+        handleRealtimePlayersUpdate,
+      );
+      channelRef.current = channel;
+      setUseRealtime(true);
+    },
+    [handleRealtimePlayersUpdate],
+  );
 
   // 選択肢をランダムにシャッフルする関数
   const shuffleAnswers = useCallback((question: QuizQuestion): QuizQuestion => {
     // 選択肢と正解のインデックスを取得
     const answers = [...question.answers];
     const correctAnswer = answers[question.correctIndex];
-    
+
     // 選択肢をシャッフル
     for (let i = answers.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [answers[i], answers[j]] = [answers[j], answers[i]];
     }
-    
+
     // 新しい正解のインデックスを取得
     const newCorrectIndex = answers.indexOf(correctAnswer);
-    
+
     return {
       ...question,
       answers,
@@ -116,78 +133,94 @@ export default function QuizScreen() {
   }, []);
 
   // セッションから問題を取得
-  const loadQuestionsFromSession = useCallback(async (targetSessionId: string) => {
-    try {
-      setIsLoadingQuestions(true);
-      setError(null);
-      
-      console.log('📝 [Quiz] セッションから問題を取得中:', targetSessionId);
-      const questions = await getSessionQuestions(targetSessionId);
-      
-      if (!questions || questions.length === 0) {
-        throw new Error('問題が見つかりませんでした');
-      }
-      
-      // 各問題の選択肢をランダムにシャッフル
-      const shuffledQuestions = questions.map((q: QuizQuestion) => shuffleAnswers(q));
-      
-      setQuizData(shuffledQuestions);
-      setIsLoadingQuestions(false);
-      console.log('✅ [Quiz] 問題取得完了:', shuffledQuestions.length, '問（選択肢をランダム化）');
-    } catch (err) {
-      console.error('❌ [Quiz] 問題取得エラー:', err);
-      setError(err instanceof Error ? err.message : '問題の取得に失敗しました');
-      setIsLoadingQuestions(false);
-    }
-  }, [shuffleAnswers]);
+  const loadQuestionsFromSession = useCallback(
+    async (targetSessionId: string) => {
+      try {
+        setIsLoadingQuestions(true);
+        setError(null);
 
-  const initializeRealtimeWithExistingSession = useCallback(async (existingSessionId: string) => {
-    try {
-      console.log('🎮 [Quiz] 既存セッションで初期化:', existingSessionId);
-      
-      // 既に作成されているセッションに参加
-      await joinQuizSession(
-        existingSessionId,
-        user!.id,
-        user!.user_metadata?.username || user!.email || 'あなた'
-      );
-      
-      console.log('joinQuizSession成功 in initializeRealtimeWithExistingSession');
-      
-      setupRealtimeSubscription(existingSessionId);
-      console.log('✅ [Quiz] リアルタイム機能有効化（マッチングモード）');
-      
-      // セッションから問題を取得
-      await loadQuestionsFromSession(existingSessionId);
-    } catch (error) {
-      console.error('❌ [Quiz] リアルタイム初期化エラー:', error);
-      setUseRealtime(false);
-      setError('セッションの初期化に失敗しました');
-      setIsLoadingQuestions(false);
-    }
-  }, [setupRealtimeSubscription, user, loadQuestionsFromSession]);
+        console.log("📝 [Quiz] セッションから問題を取得中:", targetSessionId);
+        const questions = await getSessionQuestions(targetSessionId);
+
+        if (!questions || questions.length === 0) {
+          throw new Error("問題が見つかりませんでした");
+        }
+
+        // 各問題の選択肢をランダムにシャッフル
+        const shuffledQuestions = questions.map((q: QuizQuestion) =>
+          shuffleAnswers(q),
+        );
+
+        setQuizData(shuffledQuestions);
+        setIsLoadingQuestions(false);
+        console.log(
+          "✅ [Quiz] 問題取得完了:",
+          shuffledQuestions.length,
+          "問（選択肢をランダム化）",
+        );
+      } catch (err) {
+        console.error("❌ [Quiz] 問題取得エラー:", err);
+        setError(
+          err instanceof Error ? err.message : "問題の取得に失敗しました",
+        );
+        setIsLoadingQuestions(false);
+      }
+    },
+    [shuffleAnswers],
+  );
+
+  const initializeRealtimeWithExistingSession = useCallback(
+    async (existingSessionId: string) => {
+      try {
+        console.log("🎮 [Quiz] 既存セッションで初期化:", existingSessionId);
+
+        // 既に作成されているセッションに参加
+        await joinQuizSession(
+          existingSessionId,
+          user!.id,
+          user!.user_metadata?.username || user!.email || "あなた",
+        );
+
+        console.log(
+          "joinQuizSession成功 in initializeRealtimeWithExistingSession",
+        );
+
+        setupRealtimeSubscription(existingSessionId);
+        console.log("✅ [Quiz] リアルタイム機能有効化（マッチングモード）");
+
+        // セッションから問題を取得
+        await loadQuestionsFromSession(existingSessionId);
+      } catch (error) {
+        console.error("❌ [Quiz] リアルタイム初期化エラー:", error);
+        setUseRealtime(false);
+        setError("セッションの初期化に失敗しました");
+        setIsLoadingQuestions(false);
+      }
+    },
+    [setupRealtimeSubscription, user, loadQuestionsFromSession],
+  );
 
   const initializeRealtimeSession = useCallback(async () => {
     try {
-      console.log('🎮 [Quiz] リアルタイムセッション初期化開始（ソロモード）');
-      
+      console.log("🎮 [Quiz] リアルタイムセッション初期化開始（ソロモード）");
+
       const session = await createQuizSession();
       setSessionId(session.id);
-      
+
       await joinQuizSession(
         session.id,
         user!.id,
-        user!.user_metadata?.username || user!.email || 'あなた'
+        user!.user_metadata?.username || user!.email || "あなた",
       );
-      
+
       setupRealtimeSubscription(session.id);
-      
+
       // セッションから問題を取得（トリガーで自動生成されているはず）
       await loadQuestionsFromSession(session.id);
     } catch (error) {
-      console.error('❌ [Quiz] リアルタイム初期化エラー:', error);
+      console.error("❌ [Quiz] リアルタイム初期化エラー:", error);
       setUseRealtime(false);
-      setError('セッションの初期化に失敗しました');
+      setError("セッションの初期化に失敗しました");
       setIsLoadingQuestions(false);
     }
   }, [setupRealtimeSubscription, user, loadQuestionsFromSession]);
@@ -201,19 +234,19 @@ export default function QuizScreen() {
     if (sessionId) {
       // sessionIdがある場合（マッチングモードまたはソロモードで既にセッション作成済み）
       if (teamId) {
-        console.log('🎮 [Quiz] マッチングモード - チーム:', teamId);
+        console.log("🎮 [Quiz] マッチングモード - チーム:", teamId);
       } else {
-        console.log('🎮 [Quiz] ソロモード - 既存セッション:', sessionId);
+        console.log("🎮 [Quiz] ソロモード - 既存セッション:", sessionId);
       }
       initializeRealtimeWithExistingSession(sessionId);
     } else {
       // sessionIdがない場合（新規ソロモード）
-      console.log('🎮 [Quiz] ソロモード - 新規セッション作成');
+      console.log("🎮 [Quiz] ソロモード - 新規セッション作成");
       initializeRealtimeSession();
     }
 
     return () => {
-      console.log('🧹 [Quiz] リアルタイムセッション終了');
+      console.log("🧹 [Quiz] リアルタイムセッション終了");
       if (channelRef.current) {
         channelRef.current.unsubscribe();
         channelRef.current = null;
@@ -231,27 +264,30 @@ export default function QuizScreen() {
     } else if (timeLeft === 0 && !isQuizComplete) {
       // 時間切れ：間違えた場合と同じ扱い（最初からやり直し + スコアリセット）
       const handleTimeUp = async () => {
-        console.log('⏰ 時間切れ！最初からやり直し（スコアリセット）');
+        console.log("⏰ 時間切れ！最初からやり直し（スコアリセット）");
         const resetCorrectAnswers = 0;
         const resetScore = resetCorrectAnswers * 100; // ポイント = 正解数 × 100
-        
+
         setConsecutiveCorrect(0);
         setCorrectAnswers(resetCorrectAnswers);
         setScore(resetScore);
         setCurrentQuestion(0);
         setTimeLeft(15);
-        
+
         // リアルタイム機能が有効な場合、スコアを0に更新
         if (useRealtime && sessionId && user) {
           try {
             await updateQuizScore(sessionId, user.id, resetScore);
-            console.log('📤 [Quiz] 時間切れ - スコアリセット送信: 0');
+            console.log("📤 [Quiz] 時間切れ - スコアリセット送信: 0");
           } catch (error) {
-            console.error('❌ [Quiz] 時間切れ - スコアリセット送信エラー:', error);
+            console.error(
+              "❌ [Quiz] 時間切れ - スコアリセット送信エラー:",
+              error,
+            );
           }
         }
       };
-      
+
       handleTimeUp();
     }
   }, [timeLeft, isQuizComplete, useRealtime, sessionId, user]);
@@ -260,52 +296,77 @@ export default function QuizScreen() {
     if (isQuizComplete && quizData.length > 0 && !hasNavigatedRef.current) {
       // 遷移開始を即座にマーク（複数回実行を防ぐ）
       hasNavigatedRef.current = true;
-      
+
       // 最終スコアを確実に更新してから結果画面へ遷移
       const navigateToResult = async () => {
         // 正解数が問題数を超えないように制限
-        const finalCorrectAnswers = Math.min(consecutiveCorrect, quizData.length);
+        const finalCorrectAnswers = Math.min(
+          consecutiveCorrect,
+          quizData.length,
+        );
         // ポイント = 正解数 × 100として計算
         const finalScore = finalCorrectAnswers * 100;
-        
+
         // リアルタイム機能が有効な場合、最終スコアを再度送信して確実に更新
         if (useRealtime && sessionId && user) {
           try {
-            console.log('🔄 [Quiz] 結果画面遷移前に最終スコアを再送信:', finalScore, '(正解数:', finalCorrectAnswers, ')');
+            console.log(
+              "🔄 [Quiz] 結果画面遷移前に最終スコアを再送信:",
+              finalScore,
+              "(正解数:",
+              finalCorrectAnswers,
+              ")",
+            );
             await updateQuizScore(sessionId, user.id, finalScore);
             // スコア更新が反映されるまで少し待機
-            await new Promise(resolve => setTimeout(resolve, 200));
-            console.log('✅ [Quiz] 最終スコア更新完了');
+            await new Promise((resolve) => setTimeout(resolve, 200));
+            console.log("✅ [Quiz] 最終スコア更新完了");
           } catch (error) {
-            console.error('❌ [Quiz] 最終スコア再送信エラー:', error);
+            console.error("❌ [Quiz] 最終スコア再送信エラー:", error);
           }
         }
-        
+
         // 少し遅延させてから結果画面へ（アニメーションとスコア更新の反映待ちのため）
         setTimeout(() => {
           router.push({
             pathname: "/result",
-            params: { 
-              score: finalScore, 
+            params: {
+              score: finalScore,
               correctAnswers: finalCorrectAnswers, // 連続正解数を送る（問題数で制限）
               totalQuestions: quizData.length,
-              sessionId: sessionId || '',
-              mode: teamId ? 'チーム' : 'ソロ',
-              hasSomeoneCompleted: hasSomeoneCompleted ? 'true' : 'false',
+              sessionId: sessionId || "",
+              mode: teamId ? "チーム" : "ソロ",
+              hasSomeoneCompleted: hasSomeoneCompleted ? "true" : "false",
+              ...(teamId ? { teamId } : {}),
             },
           });
         }, 300);
       };
-      
+
       navigateToResult();
     }
-  }, [isQuizComplete, score, consecutiveCorrect, sessionId, teamId, quizData.length, hasSomeoneCompleted, useRealtime, user]);
+  }, [
+    isQuizComplete,
+    score,
+    consecutiveCorrect,
+    sessionId,
+    teamId,
+    quizData.length,
+    hasSomeoneCompleted,
+    useRealtime,
+    user,
+  ]);
 
   const handleAnswer = async (selectedIndex: number) => {
-    if (quizData.length === 0 || currentQuestion >= quizData.length || isQuizComplete) return;
-    
+    if (
+      quizData.length === 0 ||
+      currentQuestion >= quizData.length ||
+      isQuizComplete
+    )
+      return;
+
     const isCorrect = selectedIndex === quizData[currentQuestion].correctIndex;
-    
+
     if (isCorrect) {
       // 正解の場合
       // 連続正解数が問題数を超えないように制限
@@ -313,61 +374,67 @@ export default function QuizScreen() {
       const newCorrectAnswers = correctAnswers + 1;
       // ポイントは正解数 × 100として計算
       const newScore = newCorrectAnswers * 100;
-      
+
       setConsecutiveCorrect(newConsecutive);
       setCorrectAnswers(newCorrectAnswers);
       setScore(newScore);
-      
+
       // 全問正解したかチェック（スコア更新の前にチェック）
       const isAllCorrect = newConsecutive >= quizData.length;
-      
+
       // リアルタイム機能が有効な場合、Supabaseに送信
       if (useRealtime && sessionId && user) {
         try {
           await updateQuizScore(sessionId, user.id, newScore);
-          console.log('📤 [Quiz] スコア送信:', newScore, '(正解数:', newCorrectAnswers, ')');
-          
+          console.log(
+            "📤 [Quiz] スコア送信:",
+            newScore,
+            "(正解数:",
+            newCorrectAnswers,
+            ")",
+          );
+
           // 全問正解の場合は、スコア更新が完了してから少し待ってクイズ完了にする
           // （DBの更新が確実に反映されるまで待つ）
           if (isAllCorrect) {
-            console.log('🎉 全問正解！最終スコア更新完了を待機中...');
+            console.log("🎉 全問正解！最終スコア更新完了を待機中...");
             // スコア更新が確実に反映されるまで少し待機
-            await new Promise(resolve => setTimeout(resolve, 300));
-            console.log('✅ 最終スコア更新完了');
+            await new Promise((resolve) => setTimeout(resolve, 300));
+            console.log("✅ 最終スコア更新完了");
           }
         } catch (error) {
-          console.error('❌ [Quiz] スコア送信エラー:', error);
+          console.error("❌ [Quiz] スコア送信エラー:", error);
         }
       }
-      
+
       // 全問正解した場合
       if (isAllCorrect) {
-        console.log('🎉 全問正解！');
+        console.log("🎉 全問正解！");
         setIsQuizComplete(true);
         return;
       }
-      
+
       // 次の問題へ
       handleNextQuestion();
     } else {
       // 間違えた場合：最初からやり直し + スコアリセット
-      console.log('❌ 間違い！最初からやり直し（スコアリセット）');
+      console.log("❌ 間違い！最初からやり直し（スコアリセット）");
       const resetCorrectAnswers = 0;
       const resetScore = resetCorrectAnswers * 100; // ポイント = 正解数 × 100
-      
+
       setConsecutiveCorrect(0);
       setCorrectAnswers(resetCorrectAnswers);
       setScore(resetScore);
       setCurrentQuestion(0);
       setTimeLeft(15);
-      
+
       // リアルタイム機能が有効な場合、スコアを0に更新
       if (useRealtime && sessionId && user) {
         try {
           await updateQuizScore(sessionId, user.id, resetScore);
-          console.log('📤 [Quiz] スコアリセット送信: 0');
+          console.log("📤 [Quiz] スコアリセット送信: 0");
         } catch (error) {
-          console.error('❌ [Quiz] スコアリセット送信エラー:', error);
+          console.error("❌ [Quiz] スコアリセット送信エラー:", error);
         }
       }
     }
@@ -380,37 +447,44 @@ export default function QuizScreen() {
     }
   };
 
-  const progress = quizData.length > 0 ? ((currentQuestion + 1) / quizData.length) * 100 : 0;
-  
+  const progress =
+    quizData.length > 0 ? ((currentQuestion + 1) / quizData.length) * 100 : 0;
+
   // ソロモードの判定
   const isSoloMode = !teamId;
-  
+
   // ランキングプレイヤーの決定
   let rankingPlayers: QuizPlayer[] = [];
   if (isSoloMode) {
     // ソロモード: 自分だけを表示
     if (useRealtime && realtimePlayers.length > 0) {
       // リアルタイムデータから自分だけを取得
-      const myself = realtimePlayers.find(p => p.id === user?.id);
+      const myself = realtimePlayers.find((p) => p.id === user?.id);
       if (myself) {
         rankingPlayers = [myself];
       }
     } else if (user) {
       // フォールバック: 自分のみ表示
-      rankingPlayers = [{
-        id: user.id,
-        name: user.user_metadata?.username || user.email || 'あなた',
-        score: score,
-        rank: 1,
-        avatar: (user.user_metadata?.username || user.email || 'あなた')[0]?.toUpperCase() || 'U',
-        isYou: true,
-      }];
+      rankingPlayers = [
+        {
+          id: user.id,
+          name: user.user_metadata?.username || user.email || "あなた",
+          score: score,
+          rank: 1,
+          avatar:
+            (user.user_metadata?.username ||
+              user.email ||
+              "あなた")[0]?.toUpperCase() || "U",
+          isYou: true,
+        },
+      ];
     }
   } else {
     // チームモード: リアルタイムデータのみ表示
-    rankingPlayers = useRealtime && realtimePlayers.length > 0 
-      ? realtimePlayers.slice(0, 3)
-      : [];
+    rankingPlayers =
+      useRealtime && realtimePlayers.length > 0
+        ? realtimePlayers.slice(0, 3)
+        : [];
   }
 
   // ローディング状態
@@ -430,7 +504,9 @@ export default function QuizScreen() {
     return (
       <LinearGradient colors={["#ad46ff", "#4f39f6"]} style={styles.container}>
         <View style={styles.loadingContainer}>
-          <Text style={styles.errorText}>❌ {error || 'クイズデータの読み込みに失敗しました'}</Text>
+          <Text style={styles.errorText}>
+            ❌ {error || "クイズデータの読み込みに失敗しました"}
+          </Text>
         </View>
       </LinearGradient>
     );
@@ -444,7 +520,8 @@ export default function QuizScreen() {
         </View>
         <View style={styles.progressRow}>
           <Text style={styles.questionText}>
-            問題 {currentQuestion + 1}/{quizData.length} (連続正解: {Math.min(consecutiveCorrect, quizData.length)}/{quizData.length})
+            問題 {currentQuestion + 1}/{quizData.length} (連続正解:{" "}
+            {Math.min(consecutiveCorrect, quizData.length)}/{quizData.length})
           </Text>
           <Text style={styles.timeText}>⏰ {timeLeft}秒</Text>
         </View>
@@ -454,14 +531,15 @@ export default function QuizScreen() {
       <View style={styles.rankingSection}>
         <View style={styles.rankingHeader}>
           <Text style={styles.rankingLabel}>
-            🏆 ランキング {useRealtime && <Text style={styles.liveIndicator}>● LIVE</Text>}
+            🏆 ランキング{" "}
+            {useRealtime && <Text style={styles.liveIndicator}>● LIVE</Text>}
           </Text>
         </View>
         <View style={styles.playersContainer}>
           {rankingPlayers.map((player, index) => {
             const RankIcon = index === 0 ? FirstRankIcon : null;
-            const displayRank = player.rank || (index + 1);
-            
+            const displayRank = player.rank || index + 1;
+
             return (
               <View
                 key={player.id || index}
@@ -478,7 +556,7 @@ export default function QuizScreen() {
                   <Text style={styles.playerRank}>{displayRank}</Text>
                 )}
                 <Avatar
-                  initial={player.avatar || player.name?.[0] || 'P'}
+                  initial={player.avatar || player.name?.[0] || "P"}
                   size={26}
                   backgroundColor={player.isYou ? "#f0b100" : "#ad46ff"}
                   borderColor={player.isYou ? "#fdc700" : "#ffffff33"}
